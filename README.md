@@ -13,7 +13,7 @@
 
 *Edge-optimized intrusion detection achieving Random Forest accuracy (94.97%) with XGBoost speed (0.028ms latency)*
 
-[🚀 Download Windows App](#-windows-application) • [📊 View Results](#-performance-results) • [📖 Read Documentation](#-documentation) • [🎓 Academic Report](https://github.com/ishans2404/luflow-intrusion-detection/blob/70e6ed90e6655fe01ad59dd2f62dbc80c37c0281/final%20submission/project-report/project-report-22BCE2608.pdf)
+[🚀 Download Windows App](#-installation) • [📊 View Results](#-performance-results) • [📖 Read Documentation](#-documentation) • [🎓 Academic Report](https://github.com/ishans2404/luflow-intrusion-detection/blob/70e6ed90e6655fe01ad59dd2f62dbc80c37c0281/final%20submission/project-report/project-report-22BCE2608.pdf)
 
 </div>
 
@@ -465,7 +465,7 @@ EXPORT_FORMAT = "csv"
 
 ### Academic Report
 
-**Comprehensive thesis document:** [project-report-22BCE2608.pdf](final%20submission/project-report/project-report-22BCE2608.pdf)
+**Comprehensive thesis document:** [project-report-22BCE2608.pdf](https://github.com/ishans2404/luflow-intrusion-detection/blob/70e6ed90e6655fe01ad59dd2f62dbc80c37c0281/final%20submission/project-report/project-report-22BCE2608.pdf)
 
 **Contents:**
 - Chapter 1: Introduction and motivation
