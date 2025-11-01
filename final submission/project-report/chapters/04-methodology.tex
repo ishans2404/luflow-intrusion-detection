@@ -1,0 +1,526 @@
+% ============================================
+% CHAPTER 3: METHODOLOGY AND SYSTEM ARCHITECTURE (chapters/04-methodology.tex)
+% ============================================
+
+\chapter{Methodology and System Architecture}
+
+This chapter presents the comprehensive methodological framework employed throughout the three-phase investigation, detailing the system architecture integrating data engineering, model development, and operational deployment components. The methodology emphasizes reproducibility, scalability, and systematic evaluation under resource-constrained deployment scenarios characteristic of edge computing environments.
+
+\section{Overall System Architecture}
+
+\subsection{Architectural Overview and Component Integration}
+
+The system architecture implements a modular design separating data acquisition, preprocessing, model training, evaluation, and deployment concerns into distinct but interconnected subsystems. This separation enables independent optimization of each component while maintaining coherent data flow and dependency management across the complete pipeline.
+
+Figure~\ref{fig:system-arch} illustrates the integrated architecture spanning all three project phases, showing data flow from raw CSV files through preprocessing, model training, evaluation, and final packaging into distributable Windows executables.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{images/dashboard-arch.png}
+    \caption{System Architecture: End-to-end pipeline from raw LUFlow data through model deployment, showing component interactions and data flow across three project phases}
+    \label{fig:system-arch}
+\end{figure}
+
+The architecture comprises five principal subsystems that collectively implement the complete intrusion detection workflow:
+
+\textbf{Data Acquisition Subsystem} implements recursive file discovery across the LUFlow directory structure, identifying all available CSV files and extracting temporal metadata from folder hierarchies (YYYY/MM format). This subsystem maintains an inventory of discovered files with associated metadata including file paths, estimated record counts, and temporal classification, enabling downstream selection algorithms to operate on comprehensive file catalogs.
+
+\textbf{Data Engineering Subsystem} orchestrates the preprocessing pipeline transforming raw CSV files into analysis-ready datasets through multiple stages including temporal file selection algorithms balancing monthly representation, schema standardization mapping heterogeneous input formats to consistent feature schemas, stratified sampling preserving class distributions across files, comprehensive quality assurance identifying missing values, duplicates, and integrity violations, memory optimization through aggressive dtype conversion and batch processing, and final dataset assembly with provenance tracking maintaining lineage to source files.
+
+\textbf{Model Training Subsystem} implements standardized training workflows evaluating multiple algorithm families under consistent conditions. The subsystem manages hyperparameter configuration, class weight computation for imbalanced data handling, stratified train/test splitting maintaining class distributions, model fitting with resource monitoring, and artifact serialization preserving trained models, encoders, feature schemas, and metadata for subsequent deployment phases.
+
+\textbf{Evaluation Framework Subsystem} captures comprehensive performance metrics across accuracy dimensions, computational efficiency, and resource utilization. The framework computes classification metrics including overall accuracy and weighted F1-scores, per-class performance including precision, recall, and F1-scores for benign, malicious, and outlier categories, confusion matrices visualizing classification patterns, feature importance rankings identifying dominant predictors, inference latency profiling measuring per-sample processing times at millisecond granularity, and memory utilization tracking capturing peak memory consumption during inference operations through system-level profiling.
+
+\textbf{Deployment Subsystem} packages optimized models into operational applications through multiple integration layers. The subsystem implements model serialization creating portable artifacts (pickle/joblib format), inference pipeline factories encapsulating model loading and prediction workflows, PyQt5 graphical user interface providing multi-mode operational capabilities (live capture, CSV batch processing, single-flow prediction), session management maintaining audit trails and prediction logs, and PyInstaller packaging creating standalone Windows executables embedding Python interpreter, dependencies, and model artifacts into single distributable files.
+
+\subsection{Data Flow and Component Dependencies}
+
+The architectural design implements a sequential dependency chain ensuring data quality and consistency propagate through the complete pipeline. Each subsystem consumes outputs from predecessor stages, applies transformations or computations, and produces outputs consumed by subsequent stages.
+
+The data flow proceeds through the following sequential stages with explicit input/output contracts:
+
+\textbf{Stage 1: File Discovery} accepts as input the root directory path containing LUFlow CSV files organized in YYYY/MM folder structure and produces as output a comprehensive file inventory cataloging 241 discovered files with full paths, temporal metadata, and estimated record counts.
+
+\textbf{Stage 2: Temporal Selection} accepts the complete file inventory as input and produces as output a balanced file selection comprising 135 files satisfying temporal distribution constraints (maximum 15 files per month, minimum 8 files, balanced monthly representation).
+
+\textbf{Stage 3: Data Preprocessing} accepts the selected file list as input, processes each file through the complete quality pipeline, and produces as output a consolidated dataset of 7,890,694 flows with standardized schema, cleaned data, provenance tracking, and verified class distributions (53.8\% benign, 33.3\% malicious, 12.9\% outlier).
+
+\textbf{Stage 4: Model Training} accepts the preprocessed dataset as input and produces as output trained models (Random Forest, XGBoost, LightGBM) with associated artifacts including label encoders mapping integer predictions to class names, feature name lists preserving column order, hyperparameter configurations documenting model settings, and performance metrics capturing training/validation results.
+
+\textbf{Stage 5: Model Evaluation} accepts trained models and hold-out test sets as input and produces as output comprehensive evaluation results including classification reports with per-class metrics, confusion matrices showing classification patterns, feature importance rankings identifying key predictors, inference timing measurements at per-sample granularity, and memory profiling results capturing resource utilization.
+
+\textbf{Stage 6: Deployment Packaging} accepts the optimal model artifacts and evaluation results as input and produces as output a distributable Windows application including PyQt5 GUI implementation, inference pipeline integration, embedded model artifacts, and PyInstaller-packaged executable suitable for end-user distribution.
+
+\section{Three-Phase Project Structure}
+
+\subsection{Phase Dependency Architecture}
+
+The investigation implements a sequential three-phase structure where each phase builds upon artifacts, insights, and validated approaches established in predecessor phases. This dependency architecture ensures incremental validation of technical assumptions while progressively advancing toward the final operational deployment objective.
+
+The phase dependency chain follows the structure: \textbf{Phase I} $\rightarrow$ \textbf{Phase II} $\rightarrow$ \textbf{Phase III}, where arrows represent artifact dependencies and knowledge transfer between phases.
+
+\subsection{Phase I: Dataset Preparation and Feature Engineering}
+
+\subsubsection{Phase Objectives and Deliverables}
+
+Phase I establishes the data engineering infrastructure required to process large-scale network telemetry from distributed CSV files into analysis-ready datasets suitable for machine learning model training. The phase addresses challenges including file discovery across complex directory hierarchies, temporal selection preventing monthly bias, schema standardization handling format variations, quality assurance ensuring data integrity, and reproducible dataset assembly supporting validation and auditing requirements.
+
+\subsubsection{Core Technical Components}
+
+\textbf{File Discovery Engine} implements recursive directory traversal identifying all available CSV files within the LUFlow repository structure, extracting temporal metadata from YYYY/MM folder naming conventions, estimating record volumes through file size heuristics, and building comprehensive file inventories supporting downstream selection algorithms.
+
+\textbf{Temporal Selection Algorithm} implements balanced file selection maximizing dataset size while preventing temporal bias through constraints including maximum files per month (15 files) preventing domination by high-availability periods, minimum files per month (8 files) ensuring adequate representation across all periods, and stratified selection across available months maintaining temporal diversity in the final dataset.
+
+\textbf{Schema Standardization Module} maps heterogeneous input column names to consistent Joy tool feature specifications, performs data type conversions optimizing memory utilization (int64 $\rightarrow$ uint32/uint16, float64 $\rightarrow$ float32), validates presence of required features and target labels, and documents feature semantics supporting model interpretation.
+
+\textbf{Quality Assurance Framework} implements comprehensive validation procedures including missing value detection and quantification across all features, duplicate record identification through complete row hashing, infinite value screening for numeric features, range validation ensuring logical constraints (ports: 0-65535, entropy: 0-8 bits/byte), and statistical profiling capturing distribution characteristics supporting anomaly detection.
+
+\textbf{Stratified Sampling Engine} preserves class distributions during file-level sampling through per-file stratified selection extracting approximately 59,259 flows while maintaining original class proportions, robust handling of small-class scenarios where target sample sizes exceed available records, and deterministic sampling using fixed random seeds (SEED=331) ensuring reproducibility across multiple pipeline executions.
+
+\subsubsection{Phase I Outputs and Artifacts}
+
+Phase I produces the following critical artifacts consumed by subsequent phases:
+
+\texttt{luflow\_dataset.csv} -- Consolidated dataset containing 7,890,694 network flows with 15 predictive features, target labels, source file provenance, standardized schema aligned with Joy tool specifications, cleaned data free from missing values in critical features, and verified class distributions (53.8\% benign, 33.3\% malicious, 12.9\% outlier).
+
+\texttt{data\_quality\_report.json} -- Comprehensive quality assessment documenting missing value statistics, duplicate detection results, feature distribution summaries, temporal coverage analysis, and processing metadata including file selection parameters and sampling configurations.
+
+\texttt{file\_selection\_manifest.json} -- Complete inventory of selected files documenting 135 chosen files with full paths, temporal classifications, estimated contributions to final dataset, and selection rationale supporting audit and reproducibility requirements.
+
+\subsection{Phase II: Model Development and Comprehensive Benchmarking}
+
+\subsubsection{Phase Objectives and Deliverables}
+
+Phase II implements systematic evaluation of multiple machine learning algorithm families to identify optimal models satisfying the dual constraints of high classification accuracy and computational efficiency suitable for edge deployment. The phase addresses research gaps identified in literature review including absence of unified benchmarking frameworks comparing multiple algorithms under consistent conditions, incomplete resource characterization failing to measure inference latency and memory utilization at granularities required for deployment decisions, and limited evaluation of accuracy-speed-memory trade-offs preventing principled model selection for specific deployment scenarios.
+
+\subsubsection{Evaluation Framework Design}
+
+The evaluation framework implements standardized procedures ensuring fair comparison across algorithm families with different training paradigms and computational characteristics.
+
+\textbf{Dataset Partitioning Strategy} employs stratified train/test splitting with 80\% training allocation (6,312,555 flows), 20\% test allocation (1,578,139 flows), stratification maintaining class distributions in both partitions, and fixed random seed (SEED=331) ensuring deterministic splits across multiple experimental runs.
+
+\textbf{Model Training Protocol} standardizes hyperparameter configurations based on literature recommendations and preliminary tuning experiments, implements class weight computation addressing imbalanced class distributions through inverse frequency weighting (\(w_i = \frac{N}{k \cdot n_i}\) where \(N\) is total samples, \(k\) is number of classes, \(n_i\) is class \(i\) sample count), utilizes parallel processing (n\_jobs=-1) maximizing hardware utilization, and measures training time capturing model fitting duration for cost-benefit analysis.
+
+\textbf{Performance Measurement Procedures} capture comprehensive metrics across multiple performance dimensions:
+
+\textit{Classification Accuracy Metrics} compute overall accuracy measuring global classification correctness, weighted F1-score accounting for class imbalance, per-class precision measuring positive predictive value, per-class recall measuring true positive rate (sensitivity), per-class F1-score harmonizing precision-recall trade-offs, and confusion matrices visualizing classification patterns and misclassification tendencies.
+
+\textit{Computational Efficiency Metrics} measure total inference time capturing end-to-end prediction duration on complete test set, per-sample latency computing millisecond-granularity timing (\(\text{latency} = \frac{\text{total\_time} \times 1000}{\text{n\_samples}}\)), inference throughput calculating predictions per second, and training time documenting model fitting duration for retraining cost estimation.
+
+\textit{Resource Utilization Metrics} capture peak memory usage during inference operations through system-level profiling using memory\_profiler library, model serialization size measuring on-disk storage requirements, inference working memory tracking runtime memory allocation beyond model storage, and memory efficiency ratio computing performance per megabyte of memory (\(\frac{\text{accuracy}}{\text{peak\_memory\_MB}}\)).
+
+\subsubsection{Model Selection and Configuration}
+
+Phase II evaluates three tree-based ensemble algorithms selected based on literature analysis indicating their dominance on tabular network flow features:
+
+\textbf{Random Forest Configuration} implements bootstrap aggregating with 120 estimators balancing ensemble diversity and computational cost, maximum tree depth of 22 preventing excessive overfitting while capturing complex patterns, minimum samples per split of 6 constraining leaf node creation, square root feature subsampling (max\_features='sqrt') promoting tree diversity, class weights \{benign: 1.0, malicious: 1.6, outlier: 4.2\} addressing imbalanced distributions, and parallel tree evaluation (n\_jobs=-1) utilizing multi-core processors.
+
+\textbf{XGBoost Configuration} implements gradient boosting with 100 estimators through iterative residual fitting, maximum tree depth of 6 controlling model complexity, learning rate of 0.1 moderating gradient descent steps, subsample ratio of 0.8 introducing randomness preventing overfitting, column subsample ratio of 0.8 per tree promoting feature diversity, multi-class softprob objective for probability estimates, and log-loss evaluation metric (mlogloss) optimizing probability calibration.
+
+\textbf{LightGBM Configuration} implements histogram-based boosting with 150 estimators balancing accuracy and training efficiency, maximum tree depth of 8 allowing deeper trees than XGBoost, learning rate of 0.1 matching XGBoost for fair comparison, subsample ratio of 0.8 introducing stochasticity, column subsample ratio of 0.8 promoting feature diversity, and leaf-wise tree growth strategy optimizing split gain.
+
+\subsubsection{Phase II Outputs and Artifacts}
+
+Phase II produces comprehensive evaluation results and trained model artifacts:
+
+\texttt{trained\_models/} directory containing serialized models for each algorithm (joblib/pickle format), label encoders mapping integer predictions to original class names, feature name lists preserving column ordering, hyperparameter configurations documenting model settings, and training metadata capturing dataset characteristics and split configurations.
+
+\texttt{evaluation\_results/} directory containing classification reports with per-class metrics in JSON format, confusion matrices in NumPy array format and visualizations, feature importance rankings for each model, inference timing measurements with per-sample latency statistics, memory profiling results capturing peak usage, and comparative analysis tables supporting model selection decisions.
+
+\texttt{model\_comparison\_report.md} -- Comprehensive narrative analysis comparing models across accuracy, speed, memory, and feature importance dimensions, providing deployment recommendations for different operational scenarios (balanced accuracy vs. speed-optimized vs. anomaly-focused).
+
+\subsection{Phase III: XGBoost Optimization and Application Deployment}
+
+\subsubsection{Phase Objectives and Deliverables}
+
+Phase III advances the intrusion detection system from research prototype to operational Windows desktop application through hyperparameter optimization, artifact generation, graphical user interface development, and executable packaging. The phase addresses the research-to-production gap identified in literature review where promising algorithms remain inaccessible to practitioners due to complex Python dependency management, absence of user-friendly interfaces, and lack of distributable packaging.
+
+\subsubsection{Hyperparameter Optimization Framework}
+
+The optimization framework implements RandomizedSearchCV, a computationally efficient alternative to exhaustive grid search, exploring hyperparameter space through random sampling from specified distributions.
+
+\textbf{Search Space Definition} specifies parameter distributions for systematic exploration:
+\begin{itemize}
+    \item \texttt{n\_estimators}: \(\text{randint}(100, 301)\) -- Number of boosting iterations
+    \item \texttt{max\_depth}: \(\text{randint}(6, 11)\) -- Maximum tree depth controlling complexity
+    \item \texttt{learning\_rate}: \(\text{uniform}(0.05, 0.15)\) -- Step size for gradient descent
+    \item \texttt{subsample}: \(\text{uniform}(0.8, 1.0)\) -- Fraction of samples per iteration
+    \item \texttt{colsample\_bytree}: \(\text{uniform}(0.8, 1.0)\) -- Fraction of features per tree
+    \item \texttt{reg\_alpha}: \(\text{uniform}(0, 0.1)\) -- L1 regularization term
+    \item \texttt{reg\_lambda}: \(\text{uniform}(0.5, 2.0)\) -- L2 regularization term
+\end{itemize}
+
+\textbf{Cross-Validation Strategy} employs StratifiedKFold with 3 splits maintaining class distributions across folds, stratified sampling of 50,000 training records for computational efficiency (\(\min(50000, \text{len}(X\_{\text{train}}))\)), and weighted F1-score as optimization objective balancing performance across imbalanced classes.
+
+\textbf{Search Configuration} executes 50 random parameter combinations balancing exploration breadth and computational cost, employs parallel evaluation across available CPU cores (n\_jobs=-1), implements early stopping monitoring validation metrics, and preserves complete search history for post-hoc analysis including parameter rankings, performance distributions, and sensitivity analysis.
+
+\subsubsection{Application Architecture and Implementation}
+
+The Windows desktop application implements a multi-layered architecture separating user interface, business logic, and model inference concerns.
+
+\textbf{Graphical User Interface Layer} built with PyQt5 framework implements three operational modes:
+
+\textit{Live Capture Mode} integrates PyShark for real-time packet capture requiring TShark/Wireshark installation and administrator privileges, implements flow aggregation converting packet streams to flow-level features matching model expectations, provides real-time prediction display updating as flows complete, and implements graceful degradation to synthetic traffic mode when TShark unavailable.
+
+\textit{CSV Batch Processing Mode} accepts CSV files containing network flow features, implements automatic column mapping handling naming variations, performs missing value imputation filling gaps with default values, executes batch prediction across all records, and exports results to timestamped CSV files with prediction labels and probability distributions.
+
+\textit{Single Flow Prediction Mode} provides manual input form for all 15 required features, implements input validation ensuring data type and range compliance, executes immediate prediction on form submission, displays probability distribution across three classes (benign, malicious, outlier), and logs prediction history for session review.
+
+\textbf{Model Management Layer} implements \texttt{ModelManager} class encapsulating model lifecycle operations including model loading from serialized artifacts, feature preprocessing ensuring input alignment with training schema, inference execution through \texttt{predict} and \texttt{predict\_proba} methods, result interpretation converting numeric predictions to class labels, and resource cleanup managing memory utilization.
+
+\textbf{Session Management Layer} implements audit trail capabilities through timestamped session folders organizing predictions and logs, CSV export functionality preserving predictions with metadata, session summary generation documenting processing statistics, and error logging capturing exceptions for debugging support.
+
+\subsubsection{Executable Packaging Methodology}
+
+PyInstaller creates standalone Windows executables embedding all dependencies into single distributable files through a multi-stage packaging process.
+
+\textbf{Packaging Configuration} specifies:
+\begin{lstlisting}[language=bash,caption={PyInstaller Build Command for LUFLOW-IDS Application}]
+pyinstaller --noconfirm --clean \
+    --onefile --windowed \
+    --name "LUFLOW-IDS" \
+    --icon icon.ico \
+    --hidden-import PyQt5.sip \
+    --collect-submodules PyQt5 \
+    --add-data "xgboost_models;xgboost_models" \
+    main.py
+\end{lstlisting}
+
+\textbf{Packaging Parameters:}
+\begin{itemize}
+    \item \texttt{--onefile}: Bundles application into single executable
+    \item \texttt{--windowed}: Suppresses console window for GUI applications
+    \item \texttt{--name}: Sets executable name to LUFLOW-IDS.exe
+    \item \texttt{--hidden-import}: Explicitly includes PyQt5.sip module
+    \item \texttt{--collect-submodules}: Recursively includes PyQt5 dependencies
+    \item \texttt{--add-data}: Embeds model artifacts directory (xgboost\_models)
+\end{itemize}
+
+\textbf{Distribution Preparation} generates release artifacts including standalone executable (LUFLOW-IDS.exe), SHA256 checksum for integrity verification, deployment documentation specifying system requirements (Windows 10/11, TShark for live capture), user manual describing operational modes and workflows, and GitHub Release publishing distributable assets with versioned tags.
+
+\subsubsection{Phase III Outputs and Artifacts}
+
+Phase III produces operational deployment artifacts:
+
+\texttt{optimized\_xgboost\_luflow.pkl} -- Optimized XGBoost model serialized with joblib after hyperparameter tuning achieving best cross-validated weighted F1-score.
+
+\texttt{label\_encoder.pkl} -- LabelEncoder instance mapping integer predictions [0, 1, 2] to original class names ['benign', 'malicious', 'outlier'].
+
+\texttt{feature\_names.pkl} -- Ordered feature name list ['src\_ip', 'src\_port', ...] ensuring inference input alignment with training schema.
+
+\texttt{model\_metadata.pkl} -- Comprehensive metadata dictionary documenting training statistics, optimized hyperparameters, performance metrics, dataset characteristics, and reproducibility parameters.
+
+\texttt{inference\_pipeline.py} -- Factory function \texttt{create\_inference\_pipeline(model\_dir)} returning callable \texttt{inference\_pipeline(data)} encapsulating model loading, prediction, and result formatting.
+
+\texttt{app/} directory containing PyQt5 GUI implementation (gui.py), model manager (model\_manager.py), session manager (session\_manager.py), CSV processing module (csv\_mode.py), single prediction module (single\_prediction.py), and logging utilities (logging\_utils.py).
+
+\texttt{dist/LUFLOW-IDS.exe} -- Standalone Windows executable (approximately 150-200MB) bundling Python interpreter, PyQt5 framework, XGBoost library, trained model artifacts, and application code.
+
+\texttt{build\_documentation.md} -- Comprehensive build instructions documenting PyInstaller configuration, dependency management, troubleshooting procedures, and reproducibility validation steps.
+
+\section{Evaluation Framework and Metrics}
+
+\subsection{Classification Performance Metrics}
+
+The evaluation framework employs standard machine learning metrics adapted for multi-class intrusion detection scenarios with imbalanced class distributions.
+
+\subsubsection{Overall Accuracy}
+
+Overall accuracy measures the fraction of correctly classified flows across all classes:
+\[
+\text{Accuracy} = \frac{\text{TP}_{\text{benign}} + \text{TP}_{\text{malicious}} + \text{TP}_{\text{outlier}}}{N}
+\]
+where TP denotes true positives for each class and \(N\) represents total test samples. While interpretable, accuracy can be misleading for imbalanced datasets where high accuracy may result from correctly classifying only the majority class.
+
+\subsubsection{Weighted F1-Score}
+
+The weighted F1-score addresses class imbalance by computing per-class F1-scores and averaging weighted by class support:
+\[
+\text{F1}_{\text{weighted}} = \sum_{i=1}^{k} \frac{n_i}{N} \cdot \text{F1}_i
+\]
+where \(k\) is the number of classes, \(n_i\) is the support (number of samples) for class \(i\), and \(\text{F1}_i\) is the F1-score for class \(i\).
+
+The per-class F1-score harmonizes precision and recall:
+\[
+\text{F1}_i = 2 \cdot \frac{\text{Precision}_i \cdot \text{Recall}_i}{\text{Precision}_i + \text{Recall}_i}
+\]
+
+\subsubsection{Per-Class Precision and Recall}
+
+Precision measures the positive predictive value for each class:
+\[
+\text{Precision}_i = \frac{\text{TP}_i}{\text{TP}_i + \text{FP}_i}
+\]
+where \(\text{TP}_i\) are true positives and \(\text{FP}_i\) are false positives for class \(i\).
+
+Recall (sensitivity) measures the true positive rate:
+\[
+\text{Recall}_i = \frac{\text{TP}_i}{\text{TP}_i + \text{FN}_i}
+\]
+where \(\text{FN}_i\) are false negatives for class \(i\).
+
+These metrics provide class-specific performance insights critical for security applications where different misclassification types carry varying operational costs (e.g., failing to detect malicious traffic vs. false positives on benign traffic).
+
+\subsection{Computational Efficiency Metrics}
+
+\subsubsection{Inference Latency Measurement}
+
+Per-sample inference latency quantifies the average time required to classify a single network flow:
+\[
+\text{Latency}_{\text{avg}} = \frac{\text{Total Inference Time} \times 1000}{N_{\text{test}}} \quad \text{(milliseconds)}
+\]
+
+This metric directly addresses the sub-5ms latency requirement enabling real-time detection where individual flows must receive classification within strict timing budgets.
+
+\textbf{Measurement Methodology:} Inference timing employs Python's \texttt{time.perf\_counter()} high-resolution timer capturing:
+\begin{lstlisting}[language=Python,caption={Inference Latency Measurement Procedure}]
+import time
+
+start_time = time.perf_counter()
+predictions = model.predict(X_test)
+end_time = time.perf_counter()
+
+total_time = end_time - start_time
+avg_latency_ms = (total_time * 1000) / len(X_test)
+\end{lstlisting}
+
+Measurements exclude model loading time, focusing exclusively on prediction operations representative of operational inference cycles.
+
+\subsubsection{Memory Utilization Profiling}
+
+Peak memory consumption during inference operations provides critical sizing information for edge deployment scenarios with constrained RAM budgets.
+
+\textbf{Measurement Methodology:} Memory profiling employs the \texttt{memory\_profiler} library capturing system-level memory usage:
+\begin{lstlisting}[language=Python,caption={Peak Memory Measurement During Inference}]
+from memory_profiler import memory_usage
+import numpy as np
+
+def inference_function():
+    predictions = model.predict(X_sample)
+    return predictions
+
+mem_usage = memory_usage(inference_function, interval=0.1)
+peak_memory_mb = np.max(mem_usage)
+\end{lstlisting}
+
+The profiling samples memory usage at 0.1-second intervals during inference execution, capturing peak consumption including model storage, working memory, and temporary allocations.
+
+\subsection{Reproducibility Mechanisms}
+
+\subsubsection{Deterministic Random Seed Control}
+
+All stochastic operations utilize fixed random seed SEED=331 ensuring deterministic results across multiple executions and different computing environments.
+
+\textbf{Seeded Operations:}
+\begin{itemize}
+    \item File selection sampling from available CSV files
+    \item Stratified sampling within individual files
+    \item Train/test dataset splitting
+    \item Model initialization (Random Forest, XGBoost, LightGBM)
+    \item Cross-validation fold generation
+    \item Hyperparameter search randomization
+\end{itemize}
+
+\textbf{Implementation:}
+\begin{lstlisting}[language=Python,caption={Comprehensive Random Seed Configuration}]
+import random
+import numpy as np
+from sklearn.model_selection import train_test_split
+
+SEED = 331
+
+# Configure all random number generators
+random.seed(SEED)
+np.random.seed(SEED)
+
+# Stratified train/test split with fixed seed
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, 
+    test_size=0.2,
+    stratify=y,
+    random_state=SEED
+)
+\end{lstlisting}
+
+\subsubsection{Provenance Tracking and Audit Trails}
+
+Comprehensive provenance tracking maintains complete lineage from raw CSV files through final predictions, supporting audit requirements and enabling root-cause analysis of model behaviors.
+
+\textbf{Data Provenance:} Each record in the assembled dataset retains \texttt{source\_file} field documenting the originating daily CSV file, enabling:
+\begin{itemize}
+    \item Identification of file-specific quality issues
+    \item Temporal bias detection through monthly aggregation
+    \item Targeted data quality investigations
+    \item Reproducibility verification through source file inspection
+\end{itemize}
+
+\textbf{Processing Provenance:} All pipeline stages log:
+\begin{itemize}
+    \item Input file selections with selection criteria
+    \item Preprocessing parameters (sampling rates, quality thresholds)
+    \item Model hyperparameters and training configurations
+    \item Evaluation metric computations and results
+    \item Artifact generation timestamps and versions
+\end{itemize}
+
+\textbf{Metadata Persistence:} Critical metadata persists alongside model artifacts:
+\begin{lstlisting}[language=Python,caption={Model Metadata Preservation}]
+metadata = {
+    'random_state': SEED,
+    'train_size': len(X_train),
+    'test_size': len(X_test),
+    'class_distribution': class_counts.to_dict(),
+    'feature_names': list(X_train.columns),
+    'hyperparameters': model.get_params(),
+    'training_time_seconds': training_duration,
+    'accuracy': accuracy_score(y_test, y_pred),
+    'weighted_f1': f1_score(y_test, y_pred, average='weighted'),
+    'timestamp': datetime.now().isoformat()
+}
+
+with open('model_metadata.pkl', 'wb') as f:
+    pickle.dump(metadata, f)
+\end{lstlisting}
+
+\section{Validation Strategies}
+
+\subsection{Stratified Train/Test Splitting}
+
+The investigation employs stratified splitting ensuring class distributions remain consistent across training and test partitions, preventing evaluation bias from skewed class representations.
+
+\subsubsection{Splitting Methodology}
+
+Stratified splitting implements proportional allocation where each class contributes samples to training and test sets in proportion to its overall frequency:
+\[
+\frac{n_{i,\text{train}}}{n_{i,\text{total}}} = \frac{n_{i,\text{test}}}{n_{i,\text{total}}} = 0.8 \quad \text{(for 80/20 split)}
+\]
+
+\textbf{Implementation:}
+\begin{lstlisting}[language=Python,caption={Stratified Train/Test Split with Verification}]
+from sklearn.model_selection import train_test_split
+
+# Perform stratified split
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y,
+    test_size=0.20,
+    stratify=y,
+    random_state=SEED
+)
+
+# Verify class distributions
+train_dist = np.bincount(y_train) / len(y_train)
+test_dist = np.bincount(y_test) / len(y_test)
+overall_dist = np.bincount(y) / len(y)
+
+print(f"Overall: {overall_dist}")
+print(f"Train:   {train_dist}")
+print(f"Test:    {test_dist}")
+\end{lstlisting}
+
+\subsubsection{Distribution Verification Results}
+
+Post-split verification confirms class distribution preservation:
+
+\begin{table}[htbp]
+\centering
+\caption{Class Distribution Verification Across Dataset Partitions}
+\label{tab:class-dist-verification}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Class} & \textbf{Overall} & \textbf{Training} & \textbf{Test} & \textbf{Max Deviation} \\
+\midrule
+Benign & 53.8\% & 53.8\% & 53.8\% & <0.1\% \\
+Malicious & 33.3\% & 33.3\% & 33.3\% & <0.1\% \\
+Outlier & 12.9\% & 12.9\% & 12.9\% & <0.1\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The negligible deviation (<0.1\%) confirms effective stratification maintaining representative class proportions across partitions.
+
+\subsection{Cross-Validation Framework}
+
+While the primary evaluation employs fixed train/test splitting for consistent comparison, the framework supports StratifiedKFold cross-validation for robust performance estimation and hyperparameter tuning.
+
+\subsubsection{StratifiedKFold Configuration}
+
+Cross-validation implements k-fold partitioning with stratification ensuring each fold maintains overall class distributions.
+
+\begin{lstlisting}[language=Python,caption={StratifiedKFold Cross-Validation Configuration}]
+from sklearn.model_selection import StratifiedKFold, cross_validate
+
+# Configure stratified k-fold
+cv = StratifiedKFold(
+    n_splits=3,
+    shuffle=True,
+    random_state=SEED
+)
+
+# Execute cross-validation
+cv_results = cross_validate(
+    estimator=model,
+    X=X_train,
+    y=y_train,
+    cv=cv,
+    scoring=['accuracy', 'f1_weighted'],
+    n_jobs=-1,
+    return_train_score=True
+)
+
+# Report cross-validated performance
+print(f"CV Accuracy: {cv_results['test_accuracy'].mean():.4f} "
+      f"({cv_results['test_accuracy'].std():.4f})")
+print(f"CV F1-Score: {cv_results['test_f1_weighted'].mean():.4f} "
+      f"({cv_results['test_f1_weighted'].std():.4f})")
+\end{lstlisting}
+
+\subsubsection{Cross-Validation Applications}
+
+The cross-validation framework serves multiple purposes within the methodology:
+
+\textbf{Hyperparameter Tuning:} RandomizedSearchCV employs StratifiedKFold internally, evaluating each parameter combination across multiple folds to estimate generalization performance and identify configurations minimizing overfitting.
+
+\textbf{Model Stability Assessment:} Cross-validated performance variance quantifies model stability across different training data subsets, with low variance indicating robust learning unaffected by specific train/test splits.
+
+\textbf{Generalization Estimation:} Multiple fold evaluations provide more reliable performance estimates compared to single train/test splits, particularly valuable for smaller datasets or high-variance models.
+
+\section{Workflow Integration and Orchestration}
+
+The complete methodology integrates individual components through a coordinated workflow ensuring consistent data flow, proper artifact management, and comprehensive logging across all processing stages.
+
+\subsection{End-to-End Processing Pipeline}
+
+The integrated workflow proceeds through sequential execution stages with explicit checkpoints and validation steps:
+
+\textbf{Stage 1: Environment Initialization} configures random seeds, validates input directories, initializes logging infrastructure, and verifies dependency availability (Python packages, system tools).
+
+\textbf{Stage 2: Data Acquisition} executes file discovery, applies temporal selection, validates file availability, and produces file selection manifest documenting chosen files.
+
+\textbf{Stage 3: Data Engineering} processes selected files through stratified sampling, schema standardization, quality assurance, memory optimization, and dataset assembly, producing consolidated dataset with provenance tracking.
+
+\textbf{Stage 4: Data Validation} verifies dataset integrity through class distribution checks, feature completeness validation, missing value quantification, duplicate detection, and statistical profiling.
+
+\textbf{Stage 5: Model Training} executes stratified train/test splitting, trains multiple algorithm families, measures training times, and serializes trained models with metadata.
+
+\textbf{Stage 6: Model Evaluation} computes classification metrics, measures inference latency, profiles memory usage, analyzes feature importance, and generates comprehensive evaluation reports.
+
+\textbf{Stage 7: Model Selection} compares performance across evaluation dimensions, identifies optimal model for target deployment scenario, and documents selection rationale.
+
+\textbf{Stage 8: Deployment Preparation} optimizes selected model through hyperparameter tuning, generates deployment artifacts, integrates with application framework, packages executable, and validates deployment readiness.
+
+
+\section{Summary and Methodological Contributions}
+
+This chapter presented a comprehensive methodological framework integrating data engineering, model development, and operational deployment through a systematic three-phase architecture. The methodology addresses critical research gaps including absence of unified benchmarking frameworks, incomplete resource characterization for edge deployment scenarios, and the research-to-production gap hindering practical application of academic contributions.
+
+Key methodological innovations include:
+
+\textbf{Scalable Data Engineering:} Processing pipeline handling 7.89M records with aggressive memory optimization enabling execution on standard hardware configurations.
+
+\textbf{Comprehensive Evaluation Framework:} Systematic measurement across accuracy, latency, and memory dimensions providing multi-criteria model comparison.
+
+\textbf{Reproducibility Infrastructure:} Deterministic processing through comprehensive seed control, provenance tracking, and metadata persistence.
+
+\textbf{Deployment-Oriented Design:} Complete pipeline extending from raw data through distributable executables addressing the full research-to-production lifecycle.
+
+The subsequent chapters detail the implementation and results of each project phase building on this methodological foundation.

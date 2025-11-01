@@ -1,0 +1,49 @@
+% ============================================
+% ABSTRACT (chapters/01-abstract.tex)
+% ============================================
+
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+\noindent
+The exponential proliferation of cloud services and Internet of Things (IoT) devices has dramatically expanded the corporate attack surface, enabling sophisticated zero-day exploits, living-off-the-land techniques, and slow-burn attacks that systematically evade traditional signature-based Network Intrusion Detection Systems (NIDS). This project addresses the critical challenge of designing, benchmarking, and deploying a flow-based intrusion detection system that achieves high accuracy and low latency on resource-constrained edge devices while maintaining adaptability to evolving threat landscapes.
+
+\vspace{0.3cm}
+
+\noindent
+This research implements a comprehensive three-phase methodology leveraging the LUFlow Network Intrusion Detection Dataset, a continuously updated flow-level telemetry collection from Lancaster University's production and honeypot infrastructure. LUFlow employs Cisco's Joy tool for privacy-preserving network flow capture, generating 16 engineered features per flow and implementing autonomous ground-truth labeling through correlation with Cyber Threat Intelligence (CTI) sources, classifying traffic into benign, malicious, and outlier categories.
+
+\vspace{0.3cm}
+
+\noindent
+\textbf{Phase I: Dataset Preparation and Feature Engineering} established a robust data engineering pipeline capable of processing large-scale network telemetry with strict quality controls and temporal balance. The pipeline discovered 241 daily CSV files spanning June 2020 through June 2022, implementing an enhanced temporal file selection algorithm that selected 135 files with balanced monthly representation (maximum 15 files per month, minimum 8 files). The preprocessing framework performed comprehensive schema standardization mapping 15 predictive features to Joy tool specifications, aggressive memory optimization through dtype downcasting (int64 \(\rightarrow\) uint32/uint16, float64 \(\rightarrow\) float32), and stratified sampling preserving class distributions across temporal partitions. Quality assurance procedures identified and removed 121,376 records (1.54\%) with missing port information, detected 17,287 duplicate records (0.22\%), and validated data integrity through infinite value screening and range checks. The final assembled dataset comprised 7,890,694 network flows (98.6\% of target) with 53.8\% benign traffic, 33.3\% malicious flows, and 12.9\% outlier patterns, maintaining full provenance tracking through source file lineage and deterministic reproducibility using SEED=331.
+
+\vspace{0.3cm}
+
+\noindent
+\textbf{Phase II: Model Development and Comprehensive Benchmarking} implemented a standardized training framework evaluating three tree-based ensemble algorithms targeting edge deployment constraints. Random Forest, configured with 120 estimators, maximum depth 22, and class weights (benign: 1.0, malicious: 1.6, outlier: 4.2), achieved the highest overall performance with 94.97\% accuracy, 0.9512 weighted F1-score, and exceptional outlier recall (0.93), requiring 818.87 seconds training time and 318.76 MB peak memory during inference at 0.0114 milliseconds per sample. XGBoost, optimized with 100 estimators and depth 6, delivered the fastest inference at 0.0030 milliseconds per sample (3\(\times\) faster than Random Forest) with 91.13\% accuracy and the most memory-efficient footprint (195.64 MB), though sacrificing outlier detection capability (0.48 recall). LightGBM, employing histogram-based splitting with 150 estimators, achieved 90.91\% accuracy with strong outlier recall (0.88) but highest memory consumption (391.24 MB). Feature importance analysis revealed destination port as the dominant predictor across all models (Random Forest: 0.243, XGBoost: 0.459), with source IP, total entropy, and temporal features consistently ranking in top five contributors. The comprehensive evaluation framework captured accuracy metrics, per-class precision/recall/F1-scores, confusion matrices, inference latency profiling, memory utilization tracking, and feature importance rankings, establishing Random Forest as the production-recommended model for balanced accuracy-resource trade-offs and XGBoost as the speed-optimized alternative for latency-critical deployments.
+
+\vspace{0.3cm}
+
+\noindent
+\textbf{Phase III: XGBoost Optimization and Production Deployment} advanced the intrusion detection system from research prototype to operational Windows desktop application through hyperparameter optimization, artifact generation, and executable packaging. RandomizedSearchCV with 50 iterations and StratifiedKFold cross-validation (n\_splits=3) tuned XGBoost parameters across distributions: n\_estimators (100-301), max\_depth (6-11), learning\_rate (0.05-0.15), subsample/colsample\_bytree (0.8-1.0), and regularization terms, optimizing for weighted F1-score on 50,000 stratified training samples. The optimized model, trained with RANDOM\_STATE=331 for deterministic reproducibility, produced five critical artifacts: optimized\_xgboost\_luflow.pkl (serialized model via joblib), label\_encoder.pkl (class mapping restoration), feature\_names.pkl (ordered feature list for inference alignment), model\_metadata.pkl (training statistics, hyperparameters, performance metrics), and inference\_pipeline.py (factory function encapsulating model loading and prediction workflow). A PyQt5 graphical user interface integrated three operational modes: live packet capture using PyShark/TShark with flow aggregation (requiring administrator privileges), CSV batch processing with automatic column mapping and missing value imputation, and single-flow manual prediction with probability distribution visualization. Session management capabilities logged predictions with timestamps, exported results to CSV format, and maintained full audit trails. PyInstaller packaging created a single-file Windows executable using the command configuration: \texttt{--onefile --windowed --name "LUFLOW-IDS" --hidden-import PyQt5.sip --collect-submodules PyQt5 --add-data "xgboost\_models;xgboost\_models"}, bundling all model artifacts and dependencies into a distributable binary. The application was published to GitHub Releases with SHA256 checksum verification, comprehensive deployment documentation specifying Windows 10/11 requirements, TShark dependency instructions, and reproducibility validation procedures.
+
+\vspace{0.3cm}
+
+\noindent
+The integrated system demonstrates production-grade capabilities for real-time network intrusion detection on edge-class hardware, processing network flows with sub-millisecond per-sample latency (\(<\)0.02 ms across all models), maintaining memory footprints suitable for Raspberry Pi-class devices (195-391 MB peak usage), and achieving classification accuracy exceeding 90\% across all traffic categories. The complete framework establishes a foundation for operational security deployment with demonstrated scalability to multi-million record datasets, deterministic reproducibility through comprehensive provenance tracking, and extensible architecture supporting future enhancements including online learning for concept drift adaptation, distributed processing capabilities, ensemble method combinations, and integration with real-time threat intelligence feeds. This work bridges the gap between academic intrusion detection research and practical edge deployment, delivering a validated, documented, and distributable solution addressing the critical security challenges of modern IoT and cloud-enabled enterprise networks operating under strict resource constraints.
+
+\vspace{0.5cm}
+
+\noindent
+\textbf{Implementation Links:} \\
+\href{https://github.com/ishans2404/luflow-intrusion-detection}{GitHub Repository (LUFlow Intrusion Detection)} \\
+\href{https://www.kaggle.com/code/ishans24/network-intrusion-xgboost}{Kaggle Notebook – XGBoost Model} \\
+\href{https://www.kaggle.com/code/ishans24/network-intrusion-modelling}{Kaggle Notebook – Model Benchmarking} \\
+\href{https://www.kaggle.com/code/ishans24/network-intrusion-dataset-preparation}{Kaggle Notebook – Dataset Preparation}
+
+\vspace{0.3cm}
+
+\noindent
+\textbf{Keywords:} Network Intrusion Detection, Flow-Based Analysis, Edge Computing, Machine Learning, XGBoost, Random Forest, LUFlow Dataset, Resource-Constrained Deployment, Real-Time Threat Detection, IoT Security
+

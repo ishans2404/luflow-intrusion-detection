@@ -1,0 +1,207 @@
+% ============================================
+% CHAPTER 2: LITERATURE SURVEY (chapters/03-literature-survey.tex)
+% ============================================
+
+\chapter{Literature Survey}
+
+The field of network intrusion detection has witnessed substantial evolution over the past decade, transitioning from signature-based pattern matching systems to sophisticated machine learning approaches capable of adapting to novel attack vectors. This literature survey examines contemporary research contributions addressing flow-based intrusion detection with particular emphasis on methodologies evaluated against the LUFlow Network Intrusion Detection Dataset. The survey systematically analyzes seven distinct approaches spanning supervised ensemble methods, deep learning architectures, and unsupervised anomaly detection techniques, identifying their technical strengths, operational limitations, and performance characteristics under resource-constrained deployment scenarios.
+
+\section{Comparative Analysis of Intrusion Detection Approaches}
+
+This section presents a comprehensive comparative evaluation of seven prominent intrusion detection methodologies, examining their algorithmic foundations, dataset evaluations, reported performance metrics, and operational constraints. The analysis reveals distinct trade-offs between accuracy, computational efficiency, and deployment feasibility across different algorithm families.
+
+\subsection{Random Forest Classifier (2024)}
+
+\subsubsection{Core Technical Approach}
+
+Random Forest implements bootstrap aggregating (bagging) of decision trees, constructing an ensemble of diverse classifiers through random feature subsampling at each tree split point. The algorithm trains multiple decision trees on random subsets of the training data with replacement, then aggregates their predictions through majority voting for classification tasks. This ensemble approach provides natural resistance to overfitting compared to single decision trees while maintaining high interpretability through feature importance analysis derived from mean decrease in impurity calculations across the ensemble.
+
+\subsubsection{Evaluation Methodology and Performance}
+
+The Random Forest implementation evaluated on the LUFlow dataset achieved ninety-one percent classification accuracy across benign, malicious, and outlier traffic categories. The model demonstrated particular strength in handling the imbalanced class distribution characteristic of network traffic data, where benign flows substantially outnumber malicious and outlier patterns. Feature importance analysis revealed destination port, source IP address, and entropy-based features as dominant predictors, validating the algorithm's ability to leverage service-based signatures and statistical anomalies for threat detection.
+
+\subsubsection{Deployment Characteristics and Limitations}
+
+Random Forest exhibits moderate memory requirements proportional to ensemble size, with typical implementations requiring hundreds of megabytes for models containing dozens to hundreds of trees. The parallel tree evaluation architecture enables efficient inference on multi-core processors, though memory overhead scales linearly with the number of trees and tree depth. The primary operational limitation centers on batch-oriented processing assumptions, with limited support for online learning or incremental model updates as new attack patterns emerge. This static learning constraint necessitates periodic complete retraining cycles to maintain detection effectiveness against evolving threat landscapes.
+
+\subsection{Bootstrap with Double Random Forest (B-DRF) Ensemble (2024)}
+
+\subsubsection{Algorithmic Innovation}
+
+The B-DRF Ensemble extends traditional Random Forest methodology through enhanced bootstrap aggregation combined with double randomization techniques. The approach implements randomization at both the data sampling level (selecting training subsets) and feature selection level (choosing attribute subsets for each split decision), creating increased diversity among ensemble members. This dual randomization strategy theoretically reduces correlation between individual trees, lowering ensemble variance and improving generalization performance on unseen data.
+
+\subsubsection{Reported Performance Metrics}
+
+Evaluation on the LUFlow dataset demonstrated exceptional classification accuracy reaching ninety-nine percent across all traffic categories. This performance improvement over standard Random Forest suggests the enhanced diversity from double randomization successfully captures more nuanced decision boundaries in the feature space. The algorithm maintained robust performance across the imbalanced class distribution, indicating effective handling of the minority outlier class that frequently challenges classification algorithms.
+
+\subsubsection{Operational Constraints}
+
+Despite superior accuracy, B-DRF Ensemble inherits and amplifies the computational overhead associated with ensemble methods. The double randomization process increases training time complexity compared to standard Random Forest, requiring more computational resources during the model development phase. The ensemble architecture remains fundamentally batch-oriented, processing flows in aggregate rather than supporting true real-time stream processing. The increased model complexity through enhanced diversity mechanisms reduces interpretability, making the ensemble more opaque in explaining specific classification decisions compared to simpler tree-based models. This opacity potentially hinders security operations where understanding attack indicators proves critical for incident response.
+
+\subsection{Extreme Gradient Boosting (XGBoost) (2024)}
+
+\subsubsection{Technical Architecture and Optimization}
+
+XGBoost implements gradient boosting through iterative construction of decision trees, where each successive tree attempts to correct errors made by the ensemble of previously constructed trees. The algorithm employs advanced optimization techniques including regularized learning objectives to prevent overfitting, tree pruning to control model complexity, parallel computation for efficient training, and hardware-level optimizations including cache-aware access patterns. These optimizations position XGBoost as one of the most computationally efficient gradient boosting implementations, balancing accuracy with training and inference speed.
+
+\subsubsection{Multi-Dataset Evaluation Results}
+
+XGBoost evaluation across multiple intrusion detection datasets including LUFlow demonstrated consistent high performance, achieving accuracy between ninety-eight and ninety-nine percent with weighted F1-scores reaching 99.4\%. The algorithm exhibits particular strength in handling class imbalance through built-in class weighting mechanisms and sample weighting options. Cross-validated evaluation on the April 2025 LUFlow release confirmed sustained performance on recent threat data, suggesting robust generalization capabilities across temporal variations in attack patterns and network behaviors.
+
+\subsubsection{Hyperparameter Sensitivity and Resource Requirements}
+
+The primary operational challenge with XGBoost centers on hyperparameter sensitivity, requiring extensive tuning across parameters including learning rate, maximum tree depth, number of estimators, subsample ratios, and regularization terms. Grid search or randomized search procedures for optimal hyperparameter discovery impose substantial computational overhead during model development phases. Despite optimization advances, XGBoost training remains computationally intensive compared to simpler ensemble methods, with CPU costs scaling with dataset size and model complexity. However, once trained, the sequential tree evaluation architecture enables efficient inference with lower memory overhead compared to bagging-based ensembles like Random Forest.
+
+\subsection{Light Gradient Boosting Machine (LightGBM) (2024)}
+
+\subsubsection{Histogram-Based Optimization Strategy}
+
+LightGBM introduces histogram-based splitting algorithms that fundamentally alter how gradient boosting machines process data. Rather than evaluating every possible split point for continuous features, LightGBM bins continuous values into discrete histogram buckets, dramatically reducing the computational cost of identifying optimal splits. This optimization proves particularly effective for large-scale datasets with high-cardinality features, enabling faster training and lower memory consumption compared to traditional gradient boosting implementations.
+
+\subsubsection{Performance on Benchmark Datasets}
+
+Evaluation on the CIC-IDS2017 and UNSW-NB15 intrusion detection benchmark datasets demonstrated LightGBM's efficiency advantages on large-scale and sparse data structures. The histogram-based approach enabled processing of millions of records with reduced memory overhead compared to XGBoost implementations on equivalent hardware configurations. Training times showed substantial improvements over traditional gradient boosting methods, making LightGBM attractive for scenarios requiring frequent model retraining cycles.
+
+\subsubsection{Class Imbalance Challenges}
+
+Despite computational efficiency advantages, LightGBM exhibits documented weakness in handling rare class prediction without careful hyperparameter tuning. The histogram binning strategy can inadvertently merge important feature value ranges for minority classes, reducing the algorithm's ability to learn discriminative patterns for outlier and rare attack categories. This limitation proves particularly relevant for network intrusion detection where novel attack patterns frequently appear as minority classes with limited training examples. Effective LightGBM deployment requires explicit attention to class weighting, sampling strategies, and histogram bin configuration to maintain sensitivity to minority attack classes.
+
+\subsection{Spider Monkey Optimized Artificial Neural Network (SMO-ANN) (2024)}
+
+\subsubsection{Neural Architecture and Meta-Heuristic Optimization}
+
+SMO-ANN combines multilayer perceptron (MLP) neural network architectures with Spider Monkey Optimization, a nature-inspired meta-heuristic algorithm that searches the hyperparameter and weight space through simulated social foraging behaviors. The optimization algorithm adjusts network topology (number of layers, neurons per layer), learning rates, activation functions, and initial weight configurations to maximize classification performance on training data. This approach attempts to automate the traditionally manual and expertise-dependent process of neural network architecture design and hyperparameter selection.
+
+\subsubsection{Exceptional Binary Classification Performance}
+
+Evaluation on combined LUFlow and CIC-IDS2017 datasets for binary classification tasks (benign versus malicious traffic, without distinguishing outlier subcategories) demonstrated perfect one hundred percent accuracy. This exceptional performance suggests the optimized neural architecture successfully captured complex non-linear decision boundaries separating normal and attack traffic patterns. The meta-heuristic optimization identified network configurations achieving complete separation of classes within the binary problem formulation.
+
+\subsubsection{Deployment Feasibility and Overfitting Risks}
+
+The primary deployment constraint for SMO-ANN architectures centers on computational resource requirements, particularly GPU acceleration needs for efficient neural network training and inference. The optimization process itself imposes substantial computational overhead, requiring multiple neural network training cycles to explore the hyperparameter search space. The perfect classification accuracy raises concerns regarding potential overfitting to the specific training data distributions, questioning whether performance would generalize to novel attack variants or different network environments. Deep neural networks optimized through meta-heuristics face particular overfitting risks when training data does not comprehensively represent the full operational diversity of production network traffic. The GPU dependency further constrains deployment on edge computing platforms where specialized hardware acceleration remains unavailable or power-constrained.
+
+\subsection{Convolutional and Long Short-Term Memory Hybrid Architecture (CNN/LSTM) (2024)}
+
+\subsubsection{Deep Sequence Learning Architecture}
+
+The CNN/LSTM hybrid combines convolutional neural networks for spatial feature extraction with Long Short-Term Memory recurrent networks for temporal sequence modeling. The convolutional layers process network flow features as spatial patterns, identifying local feature combinations indicative of specific traffic characteristics. The LSTM component models temporal dependencies across sequential flows, capturing attack patterns that manifest across multiple related network sessions. This architecture theoretically addresses both spatial feature relationships within individual flows and temporal attack patterns spanning multiple flows.
+
+\subsubsection{Benchmark Dataset Performance}
+
+Evaluation on NSL-KDD and UNSW-NB15 benchmark datasets demonstrated the architecture's capability to learn complex patterns characterizing sophisticated multi-stage attacks. The deep learning approach achieved competitive accuracy compared to ensemble methods while potentially capturing more subtle dependencies that decision tree-based methods might miss. The temporal modeling through LSTM components showed particular promise for detecting coordinated attack sequences where individual flows appear benign but their temporal sequence reveals malicious intent.
+
+\subsubsection{Resource Intensiveness and Edge Infeasibility}
+
+The CNN/LSTM hybrid architecture imposes substantial computational and memory requirements fundamentally incompatible with edge computing constraints. The deep neural network requires extensive training data to avoid overfitting, substantial computational resources during training (typically requiring GPU acceleration), and significant memory footprints for storing network parameters and intermediate activations during inference. Typical implementations require gigabytes of memory and multiple seconds per inference batch, orders of magnitude exceeding the sub-millisecond latency budgets and megabyte memory constraints characteristic of edge deployment scenarios. The sequential nature of LSTM processing creates additional latency penalties incompatible with real-time network monitoring requirements. These resource demands effectively restrict CNN/LSTM architectures to centralized, server-class deployments with dedicated computational infrastructure, precluding their application in distributed edge security architectures.
+
+\subsection{Isolation Forest Unsupervised Anomaly Detection (2025)}
+
+\subsubsection{Unsupervised Learning Paradigm}
+
+Isolation Forest implements unsupervised anomaly detection through isolation-based tree structures that partition the feature space to identify outliers. The algorithm operates on the principle that anomalies represent rare instances requiring fewer random partitions to isolate compared to normal instances that cluster in dense regions of the feature space. By constructing multiple isolation trees and measuring the average path length required to isolate each instance, the algorithm assigns anomaly scores without requiring labeled training data. This unsupervised approach theoretically provides capability to detect novel, zero-day attacks that have not appeared in training datasets.
+
+\subsubsection{LUFlow Evaluation and Performance Limitations}
+
+Evaluation on the LUFlow dataset revealed substantial performance limitations, achieving only 42.9\% overall classification accuracy with particularly weak recall of 2.9\% for minority classes. The algorithm's core assumption that anomalies represent isolated instances fails to align with network traffic characteristics where malicious flows can form dense clusters (e.g., coordinated scanning activities, botnet command-and-control traffic) that resemble normal traffic density patterns. The unsupervised nature eliminates the algorithm's ability to leverage labeled attack examples during training, preventing learning of known attack signatures that supervised methods exploit effectively.
+
+\subsubsection{High False Positive Rates and Operational Challenges}
+
+The poor performance on LUFlow stems partially from the dataset's substantial class imbalance, where benign traffic dominates the distribution and malicious patterns vary across multiple distinct attack types. Isolation Forest struggles to distinguish between legitimate outlier behaviors (unusual but benign traffic patterns) and truly malicious anomalies, resulting in high false positive rates that create operational burden through excessive alert volumes. The unsupervised approach lacks mechanisms to incorporate domain knowledge about specific attack indicators, relying solely on statistical rarity metrics that prove insufficient for accurate threat detection in complex network environments. These limitations constrain Isolation Forest to specialized applications focusing on novel threat discovery rather than primary intrusion detection systems requiring high accuracy and low false positive rates.
+
+\section{Comprehensive Comparative Analysis}
+
+Table~\ref{tab:lit-comparison} presents a systematic comparison of the seven intrusion detection approaches across multiple dimensions including algorithmic technique, evaluation datasets, reported strengths, key limitations, and LUFlow-specific performance metrics where available.
+
+\begin{table}[htbp]
+\centering
+\caption{Comparative Analysis of Contemporary Intrusion Detection Approaches}
+\label{tab:lit-comparison}
+\scriptsize
+\begin{tabular}{@{}p{0.5cm}p{3cm}p{2.5cm}p{2.2cm}p{2.5cm}p{2.5cm}p{1.3cm}@{}}
+\toprule
+\textbf{\#} & \textbf{Model \& Year} & \textbf{Core Technique} & \textbf{Datasets} & \textbf{Reported Strengths} & \textbf{Key Limitations} & \textbf{LUFlow Perf.} \\
+\midrule
+1 & Random Forest (2024) & Bagging of decision trees & LUFlow & High accuracy; interpretable feature importance & Memory-heavy; offline batch processing & 91\% accuracy \\
+\addlinespace
+2 & B-DRF Ensemble (2024) & Bootstrap with double randomization & LUFlow & 99\% accuracy; reduced ensemble variance & Batch-oriented; opaque decision process & 99\% accuracy \\
+\addlinespace
+3 & XGBoost (2024) & Gradient boosted decision trees & Multiple IDS benchmarks & Handles class imbalance; top F1-score (99.4\%) & Hyperparameter-heavy; CPU intensive & 98--99\%\textsuperscript{\textdagger} \\
+\addlinespace
+4 & LightGBM (2024) & Histogram-based gradient boosting & CIC-IDS2017, UNSW-NB15 & Fast training on large sparse data & Weak on rare classes without tuning & N/A \\
+\addlinespace
+5 & SMO-ANN (2024) & Spider Monkey optimized MLP & LUFlow, CIC-IDS2017 & 100\% binary classification accuracy & Requires GPU; overfitting risks & 100\% (binary) \\
+\addlinespace
+6 & CNN/LSTM Hybrid (2024) & Deep sequence learning & NSL-KDD, UNSW-NB15 & Learns complex temporal patterns & High compute and RAM requirements & N/A \\
+\addlinespace
+7 & Isolation Forest (2025) & Unsupervised anomaly detection & LUFlow & No labeled training data required & 2.9\% minority class recall; high false positives & 42.9\% accuracy \\
+\bottomrule
+\multicolumn{7}{l}{\scriptsize \textsuperscript{*}Published or reproduced performance metrics.} \\
+\multicolumn{7}{l}{\scriptsize \textsuperscript{\textdagger}Cross-validated on April 2025 LUFlow release.} \\
+\end{tabular}
+\end{table}
+
+\section{Cross-Cutting Observations and Patterns}
+
+Analysis across the surveyed approaches reveals several consistent patterns and insights regarding algorithm suitability for flow-based intrusion detection under resource constraints.
+
+\subsection{Tree Ensemble Dominance on Tabular Flow Data}
+
+Tree-based ensemble methods including Random Forest, B-DRF, XGBoost, and LightGBM consistently achieve superior performance on LUFlow's tabular, low-dimensional feature representation. The fifteen-feature schema generated by Cisco's Joy tool creates a feature space naturally suited to decision tree splitting strategies that partition continuous and categorical attributes through threshold-based rules. Tree ensembles effectively capture non-linear relationships between network flow characteristics without requiring extensive feature engineering or transformation typical of other machine learning paradigms.
+
+The interpretability advantages of tree-based methods prove particularly valuable for security operations contexts where understanding attack indicators and model reasoning supports incident investigation and threat intelligence generation. Feature importance metrics derived from tree splitting criteria directly identify which network characteristics (destination ports, source IPs, entropy measures) contribute most significantly to classification decisions, providing actionable insights beyond raw accuracy metrics.
+
+However, this performance excellence comes at the cost of substantial memory requirements that scale with ensemble size and tree depth. Production Random Forest models containing hundreds of trees with depths exceeding twenty levels require hundreds of megabytes of memory for model storage alone, before accounting for inference-time working memory. This memory-speed trade-off necessitates careful model size optimization for edge deployment scenarios with strict resource budgets.
+
+\subsection{Deep Learning Infeasibility on Edge Platforms}
+
+Deep neural network architectures including SMO-ANN and CNN/LSTM hybrids achieve near-perfect accuracy on various intrusion detection benchmarks, demonstrating their theoretical capability to model complex attack patterns. However, their computational resource requirements render them fundamentally infeasible for deployment on typical edge computing platforms characteristic of IoT gateways, industrial control systems, and network appliances.
+
+The GPU acceleration requirements for efficient deep learning inference remain unavailable on most edge hardware platforms constrained by power budgets, physical form factors, and cost considerations. Even when GPU acceleration exists, the power consumption of inference operations conflicts with battery-powered or power-limited edge deployments. Memory footprints measured in gigabytes exceed the 1-4GB total memory typical of Raspberry Pi-class platforms, leaving insufficient resources for operating system, monitoring infrastructure, and model inference simultaneously.
+
+Training requirements for deep networks further complicate operational deployment, demanding extensive labeled datasets to avoid overfitting and substantial computational resources for gradient-based optimization across millions of parameters. The necessity for periodic retraining as threat landscapes evolve becomes operationally prohibitive when each training cycle requires hours or days on GPU-accelerated hardware.
+
+These constraints effectively restrict deep learning approaches to centralized, server-class deployment architectures where security monitoring aggregates to dedicated infrastructure with sufficient computational resources. While such architectures prove viable for enterprise data centers, they fail to address distributed security requirements in edge computing scenarios where local, low-latency detection proves necessary.
+
+\subsection{Unsupervised Methods and Class Imbalance Challenges}
+
+Unsupervised anomaly detection approaches like Isolation Forest offer theoretical advantages for detecting novel, zero-day attacks that lack labeled training examples. By identifying statistical outliers in feature distributions without requiring attack labels, unsupervised methods could theoretically maintain effectiveness against emerging threats that supervised models trained on historical attack data would miss.
+
+However, empirical evaluation on LUFlow reveals severe performance limitations when unsupervised methods encounter the substantial class imbalance characteristic of realistic network traffic. The 42.9\% accuracy and 2.9\% minority class recall achieved by Isolation Forest demonstrates fundamental incompatibility between isolation-based anomaly scoring and network intrusion detection requirements.
+
+The core challenge stems from network traffic exhibiting multiple legitimate reasons for unusual patterns beyond malicious activity. Legitimate outliers including rare protocol usage, unusual but authorized services, measurement noise, and configuration changes create benign anomalies indistinguishable from malicious anomalies using purely statistical criteria. Supervised methods leverage labeled attack examples to learn discriminative patterns separating malicious outliers from benign outliers, a capability unsupervised methods fundamentally lack.
+
+The severe class imbalance where benign flows outnumber malicious flows by ratios exceeding 10:1 in operational networks further degrades unsupervised performance. Anomaly detection algorithms optimized to identify rare instances naturally flag significant volumes of benign outlier traffic as anomalous, creating false positive rates incompatible with operational security requirements where alert volumes must remain manageable for human analysis.
+
+\subsection{The Sub-5ms Latency Deployment Gap}
+
+A critical observation emerging from literature review centers on the absence of reported sub-five-millisecond per-flow inference latencies across published studies. While multiple approaches report aggregate inference times on test sets, detailed per-sample latency measurements remain conspicuously absent from performance evaluations. The published research predominantly focuses on offline batch processing scenarios where entire datasets undergo inference in aggregate, reporting total processing times without granular per-flow timing characteristics.
+
+This reporting gap creates substantial uncertainty regarding real-time deployment viability where individual network flows must receive classification within strict latency budgets to enable immediate response actions. A five-millisecond per-flow budget allows processing of two hundred flows per second on a single-threaded execution path, establishing the minimum throughput required for real-time monitoring of moderate-traffic network segments. Exceeding this latency threshold necessitates either accepting detection delays incompatible with rapid response requirements or implementing parallel processing infrastructure that increases deployment complexity and resource requirements.
+
+None of the surveyed studies report continuous deployment pipelines integrating trained models with operational network monitoring infrastructure. The research remains predominantly confined to offline evaluation phases where models process pre-collected datasets, never addressing integration challenges including flow capture, real-time feature extraction, model inference, alert generation, and response orchestration within unified operational workflows.
+
+This deployment gap between research prototypes demonstrating high offline accuracy and operational security tools capable of production deployment represents a significant barrier preventing academic research from translating into practical security improvements. Bridging this gap requires explicit attention to inference latency optimization, executable packaging eliminating complex dependency management, and integration with network monitoring toolchains supporting continuous operation.
+
+\section{Identified Research Gaps}
+
+The comprehensive literature analysis reveals three principal research gaps that this investigation aims to address:
+
+\subsection{Gap 1: Systematic Multi-Model Benchmarking Under Unified Frameworks}
+
+Existing research evaluates individual algorithms in isolation using varying datasets, preprocessing pipelines, evaluation metrics, and hardware platforms. This fragmented evaluation landscape prevents direct comparison of accuracy-latency-memory trade-offs across algorithmic approaches, hindering principled model selection decisions for specific deployment scenarios. The absence of unified benchmarking frameworks evaluating multiple algorithm families on identical data splits using consistent metrics and resource measurement protocols creates substantial uncertainty regarding relative performance characteristics.
+
+\subsection{Gap 2: Edge Deployment Resource Characterization}
+
+Published studies rarely report comprehensive resource utilization metrics including peak memory consumption, per-sample inference latency, and CPU utilization patterns under realistic operational conditions. This measurement gap obscures the feasibility of deploying proposed approaches on resource-constrained edge platforms where memory, compute, and power represent strict constraints. Without detailed resource characterization, claims of edge suitability remain unsubstantiated, potentially leading practitioners to invest in deployment approaches incompatible with operational constraints.
+
+\subsection{Gap 3: Operational Deployment Pipelines and Executable Packaging}
+
+The research-to-production transition remains fundamentally under-addressed, with published work terminating at offline evaluation phases without addressing executable packaging, dependency management, continuous integration, monitoring infrastructure, or operational deployment procedures. This deployment gap prevents promising research prototypes from transitioning into operational security tools accessible to practitioners without specialized data science expertise or complex software development environments.
+
+\section{Research Contribution Framework}
+
+This investigation addresses the identified gaps through systematic benchmarking of multiple algorithm families (Random Forest, XGBoost, LightGBM) on the LUFlow dataset using unified evaluation frameworks capturing accuracy, inference latency, and memory utilization metrics. The comprehensive resource characterization explicitly measures per-sample processing times and peak memory consumption under standardized conditions, providing empirical evidence for edge deployment viability.
+
+The research extends beyond offline evaluation to implement complete deployment pipeline including model serialization, executable packaging using PyInstaller, graphical user interface development through PyQt5, and multi-mode operational design supporting live capture, batch processing, and single-flow prediction workflows. This end-to-end implementation bridges the deployment gap, delivering a distributable Windows application accessible to security practitioners without requiring Python environment management or manual dependency resolution.
+
+By addressing these three complementary gaps, the research contributes both empirical benchmarking data informing algorithm selection decisions and practical deployment artifacts demonstrating feasibility of transitioning research prototypes into operational security tools suitable for resource-constrained edge computing environments.

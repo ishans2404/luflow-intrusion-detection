@@ -1,5 +1,16 @@
 phase-2-submission/Phase_II_Flow_Based_Intrusion_Detection_Report.pdf
 .vscode/
+temp/
+main-blx.bib
+main.aux
+main.bbl
+main.blg
+main.lof
+main.lot
+main.log
+main.out
+main.run.xml
+main.toc
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

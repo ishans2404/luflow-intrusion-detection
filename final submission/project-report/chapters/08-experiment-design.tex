@@ -1,0 +1,522 @@
+% ============================================
+% CHAPTER 7: EXPERIMENT DESIGN (chapters/08-experiment-design.tex)
+% ============================================
+
+\chapter{Experiment Design}
+
+The experimental methodology establishes a rigorous framework for evaluating multiple machine learning algorithms across standardized performance metrics, computational efficiency measurements, and resource utilization profiling. This chapter documents the complete experimental design ensuring reproducible, statistically valid model comparisons supporting evidence-based deployment recommendations for resource-constrained edge environments.
+
+\section{Experimental Objectives and Requirements}
+
+\subsection{Primary Research Objectives}
+
+The experimental investigation addresses three complementary research objectives bridging the gap between academic intrusion detection research and operational edge deployment:
+
+\textbf{Objective 1: Classification Performance} -- Achieve minimum 90\% overall accuracy with weighted F1-score $\geq$0.85 across imbalanced multi-class network flow classification (benign, malicious, outlier categories).
+
+\textbf{Objective 2: Computational Efficiency} -- Demonstrate sub-5 millisecond per-sample inference latency enabling real-time classification on edge-class hardware without specialized acceleration.
+
+\textbf{Objective 3: Resource Feasibility} -- Maintain peak memory consumption below 500MB during inference operations, validating deployment compatibility with Raspberry Pi 4 and similar edge platforms (2-4GB total RAM).
+
+\subsection{Experimental Requirements Matrix}
+
+\begin{table}[htbp]
+\centering
+\caption{Experimental Requirements and Success Criteria}
+\label{tab:exp-requirements}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Category} & \textbf{Requirement} & \textbf{Threshold} \\
+\midrule
+\multirow{3}{*}{Classification Performance} & Overall accuracy & $\geq$90\% \\
+& Weighted F1-score & $\geq$0.85 \\
+& Per-class recall & $\geq$0.75 \\
+\midrule
+\multirow{2}{*}{Computational Efficiency} & Inference latency & <5ms/sample \\
+& Training time & <15 minutes \\
+\midrule
+\multirow{2}{*}{Resource Utilization} & Peak memory & <500MB \\
+& Model size & <200MB \\
+\midrule
+\multirow{2}{*}{Reproducibility} & Deterministic execution & Required \\
+& Artifact preservation & Complete \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Dataset Partitioning Strategy}
+
+\subsection{Stratified Train/Test Splitting}
+
+The dataset partitioning implements an 80/20 stratified split ensuring representative class distribution across training and evaluation subsets while maintaining temporal diversity from the Phase I assembled dataset spanning June 2020 through June 2022.
+
+\subsubsection{Splitting Methodology}
+
+The stratified splitting procedure employs scikit-learn's \texttt{train\_test\_split} function with explicit stratification parameter maintaining proportional class representation:
+
+\begin{lstlisting}[language=Python,caption={Stratified Train/Test Split Implementation}]
+from sklearn.model_selection import train_test_split
+
+SEED = 331
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X_clean,           # Features (7,769,318 x 15)
+    y_encoded,         # Encoded labels {0, 1, 2}
+    test_size=0.20,    # 20% holdout for testing
+    random_state=SEED, # Deterministic reproducibility
+    stratify=y_encoded # Maintain class proportions
+)
+\end{lstlisting}
+
+\subsubsection{Partition Characteristics and Validation}
+
+The stratified split produces training and test partitions with the following characteristics:
+
+\begin{table}[htbp]
+\centering
+\caption{Train/Test Partition Characteristics}
+\label{tab:partition-characteristics}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Partition} & \textbf{Samples} & \textbf{Percentage} & \textbf{Features} & \textbf{Classes} \\
+\midrule
+Training & 6,215,454 & 80.0\% & 15 & 3 \\
+Test & 1,553,864 & 20.0\% & 15 & 3 \\
+\midrule
+\textbf{Total} & \textbf{7,769,318} & \textbf{100.0\%} & \textbf{15} & \textbf{3} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Class Distribution Preservation:}
+
+\begin{table}[htbp]
+\centering
+\caption{Class Distribution Across Train/Test Partitions}
+\label{tab:class-distribution-partitions}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Class} & \textbf{Overall} & \textbf{Training} & \textbf{Test} & \textbf{Deviation} \\
+\midrule
+Benign (0) & 54.6\% & 54.6\% & 54.6\% & <0.01\% \\
+Malicious (1) & 32.6\% & 32.6\% & 32.6\% & <0.01\% \\
+Outlier (2) & 12.8\% & 12.8\% & 12.8\% & <0.01\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The negligible deviation (<0.01\%) confirms effective stratification maintaining class proportions across partitions, ensuring unbiased performance evaluation without systematic class distribution shifts between training and test sets.
+
+\subsection{Rationale for Fixed Holdout Split}
+
+The investigation employs fixed 80/20 holdout splitting rather than pure k-fold cross-validation as the primary evaluation strategy based on three considerations:
+
+\textbf{Computational Efficiency:} With 7.7M training samples, each model training iteration requires 2-15 minutes. A 5-fold cross-validation would multiply training time by 5×, consuming 10-75 minutes per model configuration, prohibitive for comprehensive multi-model and hyperparameter search evaluations.
+
+\textbf{Statistical Power:} The test set containing 1.55M samples provides exceptional statistical power for performance estimation. Standard error for accuracy measurement approaches zero ($\text{SE} \approx \sqrt{p(1-p)/n} \approx 0.0001$) with sample sizes exceeding 1 million, rendering cross-validation's variance reduction benefits negligible.
+
+\textbf{Deployment Realism:} Fixed holdout evaluation mirrors operational deployment scenarios where models train once on historical data and evaluate continuously on arriving traffic, better reflecting production performance characteristics than cross-validation averaging.
+
+\section{Cross-Validation Framework}
+
+While fixed holdout evaluation serves as the primary assessment methodology, the experimental framework implements cross-validation specifically for hyperparameter optimization where robust parameter selection requires variance estimation across multiple data folds.
+
+\subsection{StratifiedKFold Configuration}
+
+Hyperparameter search employs 3-fold stratified cross-validation on a computationally tractable 50,000-sample subset balancing search thoroughness with practical runtime constraints:
+
+\begin{lstlisting}[language=Python,caption={Cross-Validation Configuration for Hyperparameter Tuning}]
+from sklearn.model_selection import StratifiedKFold, RandomizedSearchCV
+
+# Configure stratified k-fold cross-validation
+cv_folds = StratifiedKFold(
+    n_splits=3,            # 3 folds balancing variance/cost
+    shuffle=True,          # Randomize fold assignment
+    random_state=SEED      # Deterministic fold generation
+)
+
+# Configure randomized hyperparameter search
+search = RandomizedSearchCV(
+    estimator=xgb_base,
+    param_distributions=param_dist,
+    n_iter=50,             # Explore 50 configurations
+    scoring='f1_weighted', # Optimize weighted F1-score
+    cv=cv_folds,           # Use stratified 3-fold CV
+    n_jobs=-1,             # Parallel evaluation
+    verbose=1,
+    random_state=SEED
+)
+
+# Execute search on stratified 50K-sample subset
+search.fit(X_sample, y_sample)
+\end{lstlisting}
+
+\subsection{Cross-Validation Application Scope}
+
+Cross-validation serves three specific purposes within the experimental methodology:
+
+\textbf{Hyperparameter Optimization:} RandomizedSearchCV internally employs StratifiedKFold to evaluate each parameter combination across multiple folds, estimating generalization performance and identifying configurations minimizing overfitting. The Phase III XGBoost optimization explored 50 parameter combinations through 3-fold validation, completing in 353.46 seconds and achieving best cross-validated weighted F1-score of 0.9107.
+
+\textbf{Model Stability Assessment:} Cross-validated performance variance quantifies model stability across different training data subsets. Low variance ($\sigma < 0.01$) indicates robust learning unaffected by specific train/test split realizations, while high variance suggests sensitivity to training data composition requiring further regularization or ensemble methods.
+
+\textbf{Early Stopping Calibration:} For iterative algorithms (XGBoost, LightGBM), cross-validation informs early stopping thresholds preventing overfitting. Monitoring validation fold performance during boosting iterations identifies optimal iteration counts before test set degradation.
+
+\section{Performance Metrics Framework}
+
+The evaluation framework implements comprehensive multi-dimensional performance assessment capturing classification accuracy, class-specific behavior, and operational characteristics through standardized scikit-learn metrics.
+
+\subsection{Classification Accuracy Metrics}
+
+\subsubsection{Overall Accuracy}
+
+Overall accuracy measures the fraction of correctly classified flows across all three categories:
+\[
+\text{Accuracy} = \frac{\text{TP}_{\text{benign}} + \text{TP}_{\text{malicious}} + \text{TP}_{\text{outlier}}}{N}
+\]
+where TP denotes true positives for each class and \(N\) represents total test samples. While interpretable, accuracy can mislead for imbalanced datasets where high accuracy may result from correctly classifying only the majority class while failing on minorities.
+
+\subsubsection{Weighted F1-Score}
+
+The weighted F1-score addresses class imbalance by computing per-class F1-scores and averaging weighted by class support:
+\[
+\text{F1}_{\text{weighted}} = \sum_{i=1}^{k} \frac{n_i}{N} \cdot \text{F1}_i
+\]
+where \(k\) is the number of classes, \(n_i\) is the support (number of samples) for class \(i\), and \(\text{F1}_i\) is the F1-score for class \(i\).
+
+The per-class F1-score harmonizes precision and recall:
+\[
+\text{F1}_i = 2 \cdot \frac{\text{Precision}_i \cdot \text{Recall}_i}{\text{Precision}_i + \text{Recall}_i}
+\]
+
+\subsubsection{Per-Class Precision and Recall}
+
+Precision measures the positive predictive value for each class:
+\[
+\text{Precision}_i = \frac{\text{TP}_i}{\text{TP}_i + \text{FP}_i}
+\]
+where \(\text{TP}_i\) are true positives and \(\text{FP}_i\) are false positives for class \(i\).
+
+Recall (sensitivity) measures the true positive rate:
+\[
+\text{Recall}_i = \frac{\text{TP}_i}{\text{TP}_i + \text{FN}_i}
+\]
+where \(\text{FN}_i\) are false negatives for class \(i\).
+
+\subsubsection{Metric Computation Implementation}
+
+\begin{lstlisting}[language=Python,caption={Comprehensive Classification Metrics Computation}]
+from sklearn.metrics import (
+    accuracy_score, 
+    f1_score,
+    precision_recall_fscore_support,
+    classification_report
+)
+
+# Compute primary metrics
+accuracy = accuracy_score(y_test, y_pred)
+f1_weighted = f1_score(y_test, y_pred, average='weighted')
+
+# Compute per-class metrics
+precision, recall, f1_macro, support = precision_recall_fscore_support(
+    y_test, 
+    y_pred, 
+    average='weighted'
+)
+
+# Generate detailed classification report
+report = classification_report(
+    y_test, 
+    y_pred, 
+    target_names=['benign', 'malicious', 'outlier'],
+    digits=4
+)
+\end{lstlisting}
+
+\subsection{Confusion Matrix Analysis}
+
+Confusion matrices provide granular insight into classification patterns and misclassification tendencies through exhaustive cross-tabulation of predicted versus actual labels:
+
+\begin{lstlisting}[language=Python,caption={Confusion Matrix Generation and Visualization}]
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Generate confusion matrix
+cm = confusion_matrix(y_test, y_pred)
+
+# Visualize with heatmap
+plt.figure(figsize=(10, 8))
+sns.heatmap(
+    cm, 
+    annot=True, 
+    fmt='d', 
+    cmap='Blues',
+    xticklabels=['Benign', 'Malicious', 'Outlier'],
+    yticklabels=['Benign', 'Malicious', 'Outlier']
+)
+plt.ylabel('True Label')
+plt.xlabel('Predicted Label')
+plt.title('Confusion Matrix: Model Performance')
+\end{lstlisting}
+
+Confusion matrix analysis reveals class-specific strengths and weaknesses, identifying whether misclassifications concentrate in specific class pairs (e.g., outliers misclassified as malicious) informing targeted model improvements.
+
+\section{Computational Efficiency Measurement}
+
+\subsection{Inference Latency Profiling}
+
+Inference latency quantifies the average time required to classify individual network flows, directly determining maximum processing throughput and real-time detection capability.
+
+\subsubsection{Latency Measurement Methodology}
+
+Latency profiling employs Python's \texttt{time.perf\_counter()} high-resolution timer providing microsecond-precision measurements:
+
+\begin{lstlisting}[language=Python,caption={High-Precision Inference Latency Measurement}]
+import time
+
+# Measure total inference time
+start_time = time.perf_counter()
+predictions = model.predict(X_test)
+end_time = time.perf_counter()
+
+# Calculate derived metrics
+total_time = end_time - start_time
+avg_latency_ms = (total_time / len(X_test)) * 1000  # milliseconds
+
+print(f"Total inference time: {total_time:.4f}s")
+print(f"Average latency per sample: {avg_latency_ms:.4f}ms")
+print(f"Throughput: {len(X_test) / total_time:.0f} samples/second")
+\end{lstlisting}
+
+\textbf{Measurement Exclusions:} Timing measurements specifically exclude model loading time, focusing exclusively on prediction operations representative of operational inference cycles after initial model deployment. This exclusion provides realistic latency estimates for continuous operation scenarios where models load once and process streams of arriving traffic.
+
+\subsubsection{Latency Performance Results}
+
+\begin{table}[htbp]
+\centering
+\caption{Inference Latency Performance Comparison}
+\label{tab:latency-comparison}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Model} & \textbf{Total Time (s)} & \textbf{Latency (ms)} & \textbf{Throughput (samples/s)} & \textbf{Threshold Met} \\
+\midrule
+XGBoost & 4.67 & 0.0030 & 332{,}666 & \checkmark{} \\
+Random Forest & 17.69 & 0.0114 & 87{,}719 & \checkmark{} \\
+LightGBM & 21.23 & 0.0137 & 72{,}992 & \checkmark{} \\
+\midrule
+\textbf{Threshold} & -- & \textbf{<5.00} & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+All evaluated models achieve sub-millisecond per-sample inference latency, with XGBoost providing 3.8× speedup compared to Random Forest and 4.6× compared to LightGBM, demonstrating exceptional computational efficiency well below the 5ms operational threshold.
+
+\section{Memory Profiling Methodology}
+
+\subsection{Peak Memory Consumption Measurement}
+
+Memory profiling quantifies peak memory usage during inference operations, providing critical sizing information for edge deployment scenarios with constrained RAM budgets.
+
+\subsubsection{Memory Measurement Implementation}
+
+The framework employs Python's \texttt{tracemalloc} module for precise system-level memory tracking:
+
+\begin{lstlisting}[language=Python,caption={Peak Memory Profiling with tracemalloc}]
+import tracemalloc
+import gc
+
+def measure_performance_with_memory(model, X_test, y_test):
+    """Measure inference performance including memory profiling"""
+    
+    # Force garbage collection for clean measurement
+    gc.collect()
+    
+    # Start memory tracing
+    tracemalloc.start()
+    
+    # Measure inference time
+    start_time = time.perf_counter()
+    predictions = model.predict(X_test)
+    end_time = time.perf_counter()
+    
+    # Capture peak memory usage during inference
+    current_memory, peak_memory = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+    
+    # Calculate metrics
+    inference_time = end_time - start_time
+    memory_mb = peak_memory / (1024**2)  # Convert bytes to MB
+    
+    return {
+        'total_time_s': inference_time,
+        'latency_ms': (inference_time / len(X_test)) * 1000,
+        'peak_memory_mb': memory_mb,
+        'accuracy': accuracy_score(y_test, predictions)
+    }
+\end{lstlisting}
+
+\textbf{Garbage Collection Forcing:} Explicit \texttt{gc.collect()} invocation before measurement ensures clean memory state, preventing residual allocations from previous operations from contaminating peak usage measurements.
+
+\subsubsection{Memory Utilization Results}
+
+\begin{table}[htbp]
+\centering
+\caption{Memory Utilization Performance Comparison}
+\label{tab:memory-comparison}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Model} & \textbf{Peak Memory (MB)} & \textbf{Model Size (MB)} & \textbf{Threshold Met} \\
+\midrule
+XGBoost & 195.64 & $\sim$9 & \checkmark{} \\
+Random Forest & 318.76 & $\sim$120 & \checkmark{} \\
+LightGBM & 391.24 & $\sim$15 & \checkmark{} \\
+\midrule
+\textbf{Threshold} & \textbf{<500.00} & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+XGBoost achieves the most compact memory footprint at 195.64MB, representing 38.6\% reduction compared to Random Forest and 50.0\% reduction compared to LightGBM. All models remain well below the 500MB threshold, validating deployment feasibility on Raspberry Pi 4 (2-4GB RAM) and similar edge platforms.
+
+\section{Reproducibility Protocols}
+
+\subsection{Deterministic Execution Framework}
+
+The experimental methodology implements comprehensive reproducibility controls ensuring identical results across multiple executions and different computing environments.
+
+\subsubsection{Global Random Seed Configuration}
+
+All stochastic operations employ fixed random seed SEED=331 providing deterministic behavior:
+
+\begin{lstlisting}[language=Python,caption={Comprehensive Random Seed Configuration}]
+import numpy as np
+import random
+
+# Global random seed for reproducibility
+SEED = 331
+
+# Configure all random number generators
+np.random.seed(SEED)
+random.seed(SEED)
+
+# Seed applied to:
+# - Dataset shuffling and sampling
+# - Train/test splitting
+# - Cross-validation fold generation
+# - Model initialization (Random Forest, XGBoost, LightGBM)
+# - Hyperparameter search randomization
+\end{lstlisting}
+
+\subsection{Computational Environment Specification}
+
+Complete computational environment documentation enables replication on equivalent infrastructure:
+
+\begin{table}[htbp]
+\centering
+\caption{Computational Environment Specification}
+\label{tab:environment-spec}
+\begin{tabular}{ll}
+\toprule
+\textbf{Component} & \textbf{Specification} \\
+\midrule
+Platform & Kaggle Notebook \\
+CPU & Intel Xeon (2× vCPU) \\
+RAM & 13GB available \\
+Storage & 73GB temporary \\
+Python Version & 3.11.13 \\
+XGBoost & 2.0.3 \\
+scikit-learn & 1.5.2 \\
+NumPy & 1.26.4 \\
+pandas & 2.2.3 \\
+Operating System & Linux (Kaggle Docker) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Artifact Preservation and Validation}
+
+Complete experimental artifacts persist enabling exact result reproduction:
+
+\begin{lstlisting}[language=Python,caption={Comprehensive Artifact Preservation}]
+import joblib
+import pickle
+
+# Save trained model
+joblib.dump(model, 'models/model.pkl', compress=3)
+
+# Save preprocessing components
+joblib.dump(label_encoder, 'models/label_encoder.pkl')
+joblib.dump(list(X_train.columns), 'models/feature_names.pkl')
+
+# Save experimental metadata
+metadata = {
+    'random_state': SEED,
+    'train_size': len(X_train),
+    'test_size': len(X_test),
+    'class_distribution': np.bincount(y_train).tolist(),
+    'best_params': best_params,
+    'test_accuracy': accuracy,
+    'test_f1_weighted': f1_weighted,
+    'inference_latency_ms': latency_ms,
+    'peak_memory_mb': memory_mb,
+    'timestamp': datetime.now().isoformat()
+}
+joblib.dump(metadata, 'models/metadata.pkl')
+\end{lstlisting}
+
+\textbf{Verification Protocol:} Artifact functional validation confirms models reload correctly and produce identical predictions:
+
+\begin{lstlisting}[language=Python,caption={Artifact Verification Procedure}]
+# Reload saved artifacts
+model_reloaded = joblib.load('models/model.pkl')
+encoder_reloaded = joblib.load('models/label_encoder.pkl')
+
+# Verify predictions match original
+test_sample = X_test.head(1000)
+predictions_original = model.predict(test_sample)
+predictions_reloaded = model_reloaded.predict(test_sample)
+
+# Confirm exact match
+assert np.array_equal(predictions_original, predictions_reloaded)
+print("Predictions match: Reproducibility verified")
+\end{lstlisting}
+
+\section{Experimental Validation and Statistical Rigor}
+
+\subsection{Statistical Power Analysis}
+
+The 1.55M-sample test set provides exceptional statistical power for performance estimation, with standard error for accuracy measurement approaching zero:
+
+\[
+\text{SE}_{\text{accuracy}} \approx \sqrt{\frac{p(1-p)}{n}} \approx \sqrt{\frac{0.95 \times 0.05}{1{,}553{,}864}} \approx 0.0001
+\]
+
+This negligible standard error ($\pm$0.01\%) ensures accuracy estimates reflect true model performance with 95\% confidence intervals narrower than $\pm$0.02 percentage points, validating statistical reliability of reported results.
+
+\subsection{Temporal Validation}
+
+The dataset spans 24 months (June 2020 -- June 2022) ensuring model exposure to:
+\begin{itemize}
+    \item Evolving attack patterns across multiple threat campaigns
+    \item Seasonal traffic variations (academic terms, holidays)
+    \item Infrastructure changes and network expansion
+    \item Multiple vulnerability disclosure cycles
+\end{itemize}
+
+This temporal diversity validates generalization capability beyond specific attack instances or time-limited traffic patterns, supporting operational deployment confidence.
+
+\section{Experimental Design Summary}
+
+The comprehensive experimental methodology establishes rigorous evaluation framework through:
+
+\begin{itemize}
+    \item \textbf{Stratified Splitting:} 80/20 train/test partition with <0.01\% class distribution deviation
+    \item \textbf{Cross-Validation:} 3-fold StratifiedKFold for hyperparameter optimization
+    \item \textbf{Performance Metrics:} Multi-dimensional assessment (accuracy, F1, precision, recall)
+    \item \textbf{Latency Profiling:} High-resolution timing with microsecond precision
+    \item \textbf{Memory Measurement:} System-level profiling via tracemalloc
+    \item \textbf{Reproducibility:} Fixed random seeds (SEED=331), complete artifact preservation
+\end{itemize}
+
+This rigorous design provides statistically valid, reproducible model comparisons supporting evidence-based deployment recommendations for resource-constrained edge environments.
+

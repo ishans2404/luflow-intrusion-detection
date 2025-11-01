@@ -1,0 +1,418 @@
+% ============================================
+% CHAPTER 6: PHASE III - XGBOOST OPTIMIZATION AND APPLICATION DEPLOYMENT
+% (chapters/07-phase3-deployment.tex)
+% ============================================
+
+\chapter{Phase III: XGBoost Optimization and Application Deployment}
+
+Phase III transforms the research prototype into an operational Windows desktop application through systematic hyperparameter optimization, artifact generation, graphical user interface development, and executable packaging. This chapter documents the complete deployment engineering workflow culminating in a distributable intrusion detection system accessible to security practitioners without Python environment management.
+
+\section{Phase III Objectives and Success Criteria}
+
+\subsection{Primary Objectives}
+
+Phase III addresses three complementary deployment objectives:
+
+\textbf{Objective 1: Model Optimization} -- Implement comprehensive hyperparameter tuning using RandomizedSearchCV with stratified cross-validation to maximize weighted F1-score while maintaining sub-5ms inference latency.
+
+\textbf{Objective 2: Artifact Generation} -- Export complete deployment package including serialized model, label encoder, feature specifications, and portable inference pipeline.
+
+\textbf{Objective 3: Application Deployment} -- Develop multi-mode Windows application with PyQt5 GUI, PyInstaller packaging, and GitHub release publication.
+
+\subsection{Success Criteria Matrix}
+
+\begin{table}[htbp]
+\centering
+\caption{Phase III Success Criteria}
+\label{tab:phase3-criteria}
+\small
+\begin{tabular}{llc}
+\toprule
+\textbf{Category} & \textbf{Criterion} & \textbf{Target} \\
+\midrule
+Model Performance & Classification accuracy & $\geq$90\% \\
+ & Weighted F1-score & $\geq$0.85 \\
+ & Per-sample latency & <5ms \\
+\midrule
+Artifact Completeness & Serialized model & Complete \\
+ & Label encoder & Complete \\
+ & Feature specifications & Complete \\
+ & Inference pipeline & Functional \\
+\midrule
+Application Functionality & GUI launches & Pass \\
+ & Live capture mode & Functional \\
+ & CSV batch processing & Functional \\
+ & Single-flow prediction & Functional \\
+\midrule
+Deployment Readiness & Standalone executable & Generated \\
+ & Dependency embedding & Complete \\
+ & GitHub publication & Released \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Experimental Environment}
+
+\subsection{Computational Infrastructure}
+
+Phase III development executed on Kaggle notebook infrastructure:
+
+\textbf{Hardware Configuration:} Intel Xeon processors, 13GB RAM, 73GB temporary storage, internet-enabled for package installation.
+
+\textbf{Software Environment:} Python 3.11.13, XGBoost 2.0.3, scikit-learn 1.3.x, Linux kernel (Kaggle Docker container).
+
+\subsection{Reproducibility Configuration}
+
+Deterministic execution ensured through global random seed control (RANDOM\_STATE=331) applied to NumPy, Python random module, train/test splits, cross-validation folds, and hyperparameter search trajectories.
+
+\section{Dataset Preparation}
+
+\subsection{Data Loading and Validation}
+
+The Phase I assembled dataset underwent systematic loading and validation:
+
+\textbf{Dataset Characteristics:}
+\begin{itemize}
+    \item Total records: 7,890,694 flows
+    \item Feature count: 17 columns (15 predictive + label + provenance)
+    \item Memory footprint: 1,889.78 MB raw DataFrame format
+    \item Target distribution: Benign 53.78\%, Malicious 33.31\%, Outlier 12.91\%
+    \item Missing values: 242,752 detected (concentrated in port fields)
+\end{itemize}
+
+\subsection{Feature Selection and Schema Standardization}
+
+Explicit feature schema definition ensured consistency with Joy tool output:
+
+\textbf{Joy Feature Set (15 features):} src\_ip, src\_port, dest\_ip, dest\_port, proto, bytes\_in, bytes\_out, num\_pkts\_in, num\_pkts\_out, entropy, total\_entropy, avg\_ipt, time\_start, time\_end, duration.
+
+\subsection{Missing Value Treatment}
+
+Complete case deletion removed 121,376 rows (1.54\%) containing missing port values, preserving 7,769,318 flows with 100\% feature completeness and maintained class distribution.
+
+\subsection{Label Encoding and Class Weights}
+
+LabelEncoder transformed categorical labels (benign, malicious, outlier) to integers (0, 1, 2). Inverse frequency class weights computed: Benign 0.61, Malicious 1.02, Outlier 2.60, following standard formula \(w_i = \frac{N}{k \cdot n_i}\).
+
+\subsection{Stratified Train/Test Splitting}
+
+Dataset partitioned 80/20 maintaining class proportions: Training 6,215,454 flows, Test 1,553,864 flows, deterministic seed RANDOM\_STATE=331.
+
+\section{Hyperparameter Optimization Framework}
+
+\subsection{RandomizedSearchCV Configuration}
+
+\subsubsection{Stratified Sampling for Efficient Tuning}
+
+Stratified sample of 50,000 training records enabled efficient hyperparameter exploration within practical computational timeframes while preserving class distribution.
+
+\subsubsection{Parameter Distribution Specification}
+
+Seven XGBoost hyperparameters explored:
+
+\begin{itemize}
+    \item \textit{n\_estimators (100-300):} Boosting iterations balancing accuracy and cost
+    \item \textit{max\_depth (6-10):} Tree depth controlling complexity and overfitting
+    \item \textit{learning\_rate (0.05-0.15):} Gradient descent step size
+    \item \textit{subsample (0.8-1.0):} Sample fraction per iteration
+    \item \textit{colsample\_bytree (0.8-1.0):} Feature sampling per tree
+    \item \textit{reg\_alpha (0-0.5):} L1 regularization for sparsity
+    \item \textit{reg\_lambda (1-2):} L2 regularization for weight decay
+\end{itemize}
+
+\subsubsection{RandomizedSearchCV Execution}
+
+50 random combinations explored through 3-fold stratified cross-validation optimizing weighted F1-score. Search completed in 353.46 seconds achieving best cross-validation score 0.9107.
+
+\subsection{Optimal Hyperparameter Configuration}
+
+\begin{table}[htbp]
+\centering
+\caption{Optimal XGBoost Hyperparameters}
+\label{tab:optimal-params}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Hyperparameter} & \textbf{Optimal Value} & \textbf{Search Range} \\
+\midrule
+n\_estimators & 288 & [100, 300] \\
+max\_depth & 8 & [6, 10] \\
+learning\_rate & 0.1475 & [0.05, 0.15] \\
+subsample & 0.9379 & [0.8, 1.0] \\
+colsample\_bytree & 0.9015 & [0.8, 1.0] \\
+reg\_alpha & 0.0212 & [0.0, 0.5] \\
+reg\_lambda & 1.5647 & [1.0, 2.0] \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Configuration converged near upper bounds (n\_estimators=288, learning\_rate=0.1475) suggesting marginal benefit from additional iterations. Moderate depth (8) balances complexity and generalization. High sampling ratios (subsample=0.94, colsample=0.90) indicate comprehensive data utilization. Minimal L1 regularization (0.02) suggests all features contribute useful information. Moderate L2 regularization (1.56) provides overfitting protection.
+
+\section{Final Model Training and Evaluation}
+
+\subsection{Full Training Set Refit}
+
+Optimal configuration retrained on complete 6.2M-record training set, completing in 415.83 seconds (6.93 minutes), processing 14,945 samples/second.
+
+\subsection{Performance Evaluation}
+
+\textbf{Overall Metrics:}
+\begin{itemize}
+    \item Accuracy: 95.40\% (exceeding 90\% threshold by 5.40 points)
+    \item Weighted F1-score: 0.9531 (exceeding 0.85 threshold by 0.1031)
+    \item Weighted precision: 0.9533
+    \item Weighted recall: 0.9540
+    \item Per-sample inference: 0.0280ms (well below 5ms threshold)
+    \item Throughput: 35,714 predictions/second
+\end{itemize}
+
+\subsection{Detailed Classification Report}
+
+\begin{table}[htbp]
+\centering
+\caption{Optimized XGBoost Per-Class Performance}
+\label{tab:xgb-optimized}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Class} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-Score} & \textbf{Support} \\
+\midrule
+Benign & 1.00 & 1.00 & 1.00 & 848,656 \\
+Malicious & 0.91 & 0.95 & 0.93 & 505,862 \\
+Outlier & 0.86 & 0.76 & 0.81 & 199,346 \\
+\midrule
+\textbf{Weighted Avg} & 0.95 & 0.95 & 0.95 & 1,553,864 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Perfect benign classification (1.00 precision/recall) demonstrates flawless legitimate traffic identification. Strong malicious performance (0.91 precision, 0.95 recall) prioritizes detection sensitivity. Moderate outlier performance (0.86 precision, 0.76 recall) represents 58\% improvement over Phase II baseline through hyperparameter optimization.
+
+\section{Model Artifact Generation and Export}
+
+\subsection{Artifact Export Strategy}
+
+Five critical artifacts ensure consistent cross-environment inference:
+
+\begin{table}[htbp]
+\centering
+\caption{Exported Model Artifacts}
+\label{tab:artifacts}
+\begin{tabular}{llc}
+\toprule
+\textbf{Artifact} & \textbf{Purpose} & \textbf{Format} \\
+\midrule
+optimized\_xgboost\_luflow.pkl & Serialized model & Joblib \\
+label\_encoder.pkl & Label transformation & Joblib \\
+feature\_names.pkl & Feature ordering & Pickle \\
+model\_metadata.pkl & Comprehensive metadata & Pickle \\
+inference\_pipeline.py & Standalone inference & Python \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Metadata Contents:} Model type, XGBoost version, random state, training/test samples, feature count, class names, class distribution, optimal parameters, CV score, test accuracy/F1, inference time, training time, model size, timestamp.
+
+\subsection{Inference Pipeline Creation}
+
+Factory function \texttt{create\_inference\_pipeline} encapsulates complete prediction workflow:
+
+\textbf{Pipeline Functionality:}
+\begin{itemize}
+    \item Loads model artifacts from specified directory
+    \item Ensures correct feature column ordering
+    \item Performs predictions with timing measurement
+    \item Converts integer predictions to original labels
+    \item Returns comprehensive results dictionary
+\end{itemize}
+
+Standalone \texttt{inference\_pipeline.py} file enables GUI and batch processing integration without notebook dependencies.
+
+\subsection{Artifact Verification}
+
+Systematic verification confirmed:
+\begin{itemize}
+    \item All 5 artifacts present and readable
+    \item Model file size: 8.77 MB
+    \item Functional reload: predictions match original
+    \item Inference pipeline executable: 10 samples processed successfully
+\end{itemize}
+
+\section{PyQt5 GUI Application Development}
+
+\subsection{Application Architecture}
+
+Multi-mode Windows desktop application integrates three operational modes:
+
+\textbf{Live Capture Mode:} PyShark/TShark integration for real-time packet capture and flow aggregation. Requires TShark executable on PATH and administrator privileges. Degrades gracefully to synthetic traffic demonstration when TShark unavailable.
+
+\textbf{CSV Batch Mode:} Load CSV files with automatic feature alignment. Missing columns filled with default values. Batch prediction with progress indication. Export predictions to timestamped CSV files.
+
+\textbf{Single Prediction Mode:} Manual feature value input for individual flow classification. Real-time probability display across three classes. Suitable for educational demonstration and sanity checking.
+
+\subsection{Core Components}
+
+\textbf{main.py:} Application entrypoint used for PyInstaller packaging.
+
+\textbf{app/gui.py:} PyQt5 GUI implementation with tab-based interface.
+
+\textbf{app/model\_manager.py:} Model loading and inference coordination.
+
+\textbf{app/session\_manager.py:} Session logging and CSV export functionality.
+
+\textbf{xgboost\_models/inference\_pipeline.py:} Standalone prediction helper imported by GUI.
+
+\section{PyInstaller Packaging}
+
+\subsection{Build Configuration}
+
+Windows executable created using PyInstaller with comprehensive dependency bundling:
+
+\textbf{PyInstaller Command:}
+\begin{verbatim}
+pyinstaller --noconfirm --clean --onefile --windowed 
+  --name LUFLOW-IDS --icon icon.ico 
+  --hidden-import PyQt5.sip 
+  --collect-submodules PyQt5 
+  --add-data xgboost_models;xgboost_models 
+  main.py
+\end{verbatim}
+
+\textbf{Configuration Rationale:}
+\begin{itemize}
+    \item \texttt{--onefile --windowed:} Single-file windowed executable
+    \item \texttt{--hidden-import PyQt5.sip:} Ensures PyQt5 SIP module inclusion
+    \item \texttt{--collect-submodules PyQt5:} Bundles all PyQt5 submodules
+    \item \texttt{--add-data:} Embeds xgboost\_models folder alongside executable
+\end{itemize}
+
+\subsection{Build Artifacts}
+
+\textbf{Output Structure:}
+\begin{itemize}
+    \item \texttt{dist/LUFLOW-IDS.exe:} Standalone Windows executable
+    \item \texttt{build/LUFLOW-IDS/:} PyInstaller intermediate files
+    \item Embedded resources: xgboost\_models folder, PyQt5 libraries, Python runtime
+\end{itemize}
+
+\section{GitHub Publishing}
+
+\subsection{Release Preparation}
+
+GitHub Release created with comprehensive documentation:
+
+\textbf{Release Assets:}
+\begin{itemize}
+    \item \texttt{LUFLOW-IDS.exe:} Single-file executable
+    \item \texttt{LUFLOW-IDS-v1.0.0.zip:} Complete dist folder archive
+    \item \texttt{xgboost\_models/:} Model artifacts (if not embedded)
+    \item SHA256 checksum: Computed via \texttt{Get-FileHash} PowerShell command
+\end{itemize}
+
+\textbf{Release Notes Contents:}
+\begin{itemize}
+    \item System requirements: Windows 10/11
+    \item Admin privileges: Required for live capture mode
+    \item TShark requirement: Optional for live capture (degrades gracefully)
+    \item Dataset/model provenance: Training data source documentation
+    \item Installation instructions: Extract and run executable
+\end{itemize}
+
+\subsection{Version Control Integration}
+
+Repository structure:
+\begin{itemize}
+    \item \texttt{network-intrusion-xgboost.ipynb:} Training notebook (root)
+    \item \texttt{app/:} GUI application source code
+    \item \texttt{xgboost\_models/:} Model artifacts and inference helper
+    \item \texttt{requirements.txt:} Python dependencies
+    \item \texttt{README.md:} Comprehensive documentation
+\end{itemize}
+
+\section{Reproducibility and Verification}
+
+\subsection{Local Verification Checklist}
+
+\textbf{Source Execution:}
+\begin{verbatim}
+python -m venv .venv
+.\.venv\Scripts\activate.ps1
+pip install -r requirements.txt
+python main.py
+\end{verbatim}
+
+\textbf{Packaged Executable:}
+\begin{verbatim}
+.\dist\LUFLOW-IDS.exe
+\end{verbatim}
+
+\textbf{Verification Tests:}
+\begin{itemize}
+    \item GUI launches successfully: Main window appears
+    \item CSV batch mode: Loads sample CSV, returns predictions
+    \item Single prediction mode: Returns labeled prediction with probabilities
+    \item Live capture mode: Receives flows (TShark) or synthetic fallback
+    \item Session logging: Creates timestamped folder under \texttt{logs/}
+    \item CSV export: Writes predictions to exported CSV file
+\end{itemize}
+
+\section{Edge Cases and Assumptions}
+
+\subsection{Assumptions}
+
+\textbf{Feature Ordering:} Inference pipeline relies on \texttt{feature\_names.pkl} for column alignment. CSV batch mode must match feature names or provide mappable columns.
+
+\textbf{TShark Availability:} Windows users may lack TSharkWireshark installation. Application degrades gracefully to synthetic mode, but live capture requires external tools and admin rights.
+
+\textbf{Single-File Build:} PyInstaller single-file builds increase startup memory and executable size. Shipping complete \texttt{dist/} folder zipped may provide more reliable resource shipping.
+
+\subsection{Edge Cases}
+
+\textbf{Missing CSV Columns:} Application fills missing numeric fields with zeros (see \texttt{app/csv\_mode.py}), potentially affecting predictions.
+
+\textbf{Model-Version Drift:} Model retraining with changed feature names requires synchronized GUI and artifact updates.
+
+\section{Phase III Success Criteria Achievement}
+
+\begin{table}[htbp]
+\centering
+\caption{Phase III Achievement Matrix}
+\label{tab:phase3-achievement}
+\begin{tabular}{lccl}
+\toprule
+\textbf{Criterion} & \textbf{Target} & \textbf{Achieved} & \textbf{Status} \\
+\midrule
+Minimum accuracy & $\geq$90\% & 95.40\% & \checkmark{} Exceeded \\
+Weighted F1-score & $\geq$0.85 & 0.9531 & \checkmark{} Exceeded \\
+Inference latency & <5ms/sample & 0.0280ms & \checkmark{} Exceeded \\
+Model artifacts & Complete & 5 files & \checkmark{} Achieved \\
+GUI functionality & Functional & 3 modes & \checkmark{} Achieved \\
+Standalone EXE & Generated & Yes & \checkmark{} Achieved \\
+GitHub release & Published & Yes & \checkmark{} Achieved \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Key Achievements:}
+\begin{itemize}
+    \item Hyperparameter optimization improved accuracy to 95.40\%
+    \item Inference latency 178x faster than threshold (0.028ms vs 5ms)
+    \item Complete artifact package enables cross-platform deployment
+    \item Multi-mode GUI supports live, batch, and single-flow inference
+    \item PyInstaller packaging creates distributable Windows executable
+    \item GitHub release provides public access with documentation
+\end{itemize}
+
+\section{Transition to Operations}
+
+Phase III successfully delivered end-to-end deployment pipeline transforming research prototype to operational application. The distributable Windows executable enables security practitioners to deploy network intrusion detection without Python expertise.
+
+\textbf{Operational Readiness:}
+\begin{itemize}
+    \item Standalone executable: No Python installation required
+    \item Model artifacts: Embedded in application bundle
+    \item Multi-mode operation: Live capture, batch processing, single prediction
+    \item Session management: Automatic logging and CSV export
+    \item Documentation: Comprehensive README and release notes
+    \item SHA256 verification: Ensures download integrity
+\end{itemize}
+
+Future enhancements may include automated testing (unit tests for inference pipeline, integration tests for CSV ingestion), CI/CD workflow (GitHub Actions producing Windows EXE automatically), runtime telemetry (optional error reporting with user consent), and server-side inference API (FastAPI/Flask for cloud deployment).
