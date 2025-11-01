@@ -1,6 +1,6 @@
 <div align="center">
 
-![LUFLOW-IDS Logo](final%20submission/LUFLOW-IDS-APP/icon.ico)
+![LUFLOW-IDS Logo](https://github.com/ishans2404/luflow-intrusion-detection/blob/70e6ed90e6655fe01ad59dd2f62dbc80c37c0281/final%20submission/LUFLOW-IDS-APP/icon.ico)
 
 # 🛡️ LUFLOW Network Intrusion Detection System
 
@@ -13,7 +13,7 @@
 
 *Edge-optimized intrusion detection achieving Random Forest accuracy (94.97%) with XGBoost speed (0.028ms latency)*
 
-[🚀 Download Windows App](#-windows-application) • [📊 View Results](#-performance-results) • [📖 Read Documentation](#-documentation) • [🎓 Academic Report](final%20submission/project-report/project-report-22BCE2608.pdf)
+[🚀 Download Windows App](#-windows-application) • [📊 View Results](#-performance-results) • [📖 Read Documentation](#-documentation) • [🎓 Academic Report](https://github.com/ishans2404/luflow-intrusion-detection/blob/70e6ed90e6655fe01ad59dd2f62dbc80c37c0281/final%20submission/project-report/project-report-22BCE2608.pdf)
 
 </div>
 
