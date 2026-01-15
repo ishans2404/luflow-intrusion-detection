@@ -50,7 +50,7 @@ The system achieves **95.40% classification accuracy** with **0.028ms inference 
 
 ### 🎓 Academic Context
 
-This project represents the **comprehensive thesis submission** for **B.Tech Computer Science with Specialization in Bioinformatics** at **Vellore Institute of Technology**, demonstrating end-to-end machine learning engineering from dataset assembly to production deployment.
+This project represents the **comprehensive thesis submission** for **B.Tech Computer Science** at **Vellore Institute of Technology**, demonstrating end-to-end machine learning engineering from dataset assembly to production deployment.
 
 ---
 
